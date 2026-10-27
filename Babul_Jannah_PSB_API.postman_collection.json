@@ -1,0 +1,182 @@
+{
+	"info": {
+		"_postman_id": "babul-jannah-psb-api-v1",
+		"name": "PSB Babul Jannah - REST API v1",
+		"description": "Koleksi Postman untuk pengujian REST API Sistem PSB Pondok Pesantren Babul Jannah.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Ambil Semua Santri (Default)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/santri.php",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"santri.php"
+					]
+				},
+				"description": "Mengambil seluruh data santri dengan limit default 50 data."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Filter Santri LULUS SELEKSI (Untuk Integrasi Akademik)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/santri.php?status_seleksi=Lulus",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"santri.php"
+					],
+					"query": [
+						{
+							"key": "status_seleksi",
+							"value": "Lulus"
+						}
+					]
+				},
+				"description": "Khusus mengambil data santri yang telah dinyatakan Lulus Seleksi Masuk."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Filter Santri SMP IT & Lunas Pembayaran",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/santri.php?jalur=SMP IT&status_pembayaran=Lunas",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"santri.php"
+					],
+					"query": [
+						{
+							"key": "jalur",
+							"value": "SMP IT"
+						},
+						{
+							"key": "status_pembayaran",
+							"value": "Lunas"
+						}
+					]
+				},
+				"description": "Filter data calon santri SMP IT yang status administrasinya Lunas."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Cari Data Santri (Keyword Search)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-KEY",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/santri.php?search=harel",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"santri.php"
+					],
+					"query": [
+						{
+							"key": "search",
+							"value": "harel"
+						}
+					]
+				},
+				"description": "Pencarian fleksibel berdasarkan nama santri, no registrasi, NIK, atau NISN."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Uji Keamanan (Tanpa API Key - Harusnya 401)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/santri.php",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"santri.php"
+					]
+				},
+				"description": "Uji keamanan endpoint tanpa menyertakan API Key. Menghasilkan 401 Unauthorized."
+			},
+			"response": []
+		}
+	]
+}

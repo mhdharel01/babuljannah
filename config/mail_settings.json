@@ -1,0 +1,8 @@
+{
+    "mail_enabled": true,
+    "mail_from": "mharel023@gmail.com",
+    "mail_from_name": "Panitia PPDB Babul Jannah",
+    "admin_emails": [
+        "mharel023@gmail.com"
+    ]
+}

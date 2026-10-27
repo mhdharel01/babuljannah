@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /vendor/
+Disallow: /scratch/
+Allow: /assets/
+Allow: /uploads/
+
+Sitemap: https://ponpesbabuljannah.com/sitemap.xml

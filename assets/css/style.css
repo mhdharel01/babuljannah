@@ -1,0 +1,81 @@
+/* assets/css/style.css */
+
+/* Google Fonts imported via link tags in HTML header for better performance */
+
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #2F2522;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.02em;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #F5F0EB;
+}
+::-webkit-scrollbar-thumb {
+    background: #8D6E63;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #3E2723;
+}
+
+/* Print Stylesheet */
+@media print {
+    body {
+        background: #FFFFFF !important;
+        color: #000000 !important;
+        font-size: 12pt;
+    }
+    
+    /* Sembunyikan elemen non-cetak */
+    .no-print, 
+    header, 
+    footer, 
+    nav, 
+    button, 
+    .btn, 
+    form, 
+    .alert,
+    .upload-section {
+        display: none !important;
+    }
+
+    /* Maksimalkan lebar kontainer cetak */
+    .print-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    /* Atur page break */
+    .page-break {
+        page-break-before: always;
+    }
+}
+
+/* Animations & Transitions */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+    animation: fadeIn 0.35s ease-out forwards;
+}

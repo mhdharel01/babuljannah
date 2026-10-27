@@ -1,0 +1,43 @@
+# Environment & Configuration (Sangat Sensitif - Password, API Key, Token)
+.env
+.env.local
+.env.*.local
+
+# Large Archive Files & Backups (Wajib di-ignore agar tidak melebihi limit 100MB GitHub)
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Database SQL Dumps
+*.sql
+*.sqlite
+
+# User Uploads (Foto bukti bayar & berkas santri diabaikan agar data server tidak tertimpa)
+uploads/*
+!uploads/.gitkeep
+
+# Log Files
+logs/*
+!logs/.gitkeep
+*.log
+
+# Dependencies
+node_modules/
+vendor/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor & AI Tool Metadata
+.vscode/
+.idea/
+.gemini/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
