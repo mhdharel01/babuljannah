@@ -100,8 +100,8 @@ function send_email_pendaftaran_baru($data) {
                 <p>Silakan lakukan pembayaran biaya pendaftaran & tes seleksi sebesar <strong>" . (function_exists('format_rupiah') ? format_rupiah($biaya_tes) : ('Rp ' . number_format($biaya_tes, 0, ',', '.'))) . "</strong> ke rekening resmi pesantren:</p>
                 <div style='background-color: #FFF8E1; border-left: 4px solid #FFA000; padding: 12px; margin: 15px 0;'>
                     <strong>Bank Syariah Indonesia (BSI)</strong><br>
-                    No. Rekening: <strong>7123456789</strong><br>
-                    A.n.: <strong>PSB Ponpes Babul Jannah</strong>
+                    No. Rekening: <strong>7300750308</strong><br>
+                    A.n.: <strong>Pesantren Babul Jannah</strong>
                 </div>
                 <p>Setelah transfer, harap segera unggah bukti pembayaran melalui Portal Cek Status menggunakan Nomor Registrasi dan No. WhatsApp Anda.</p>
                 <p style='text-align: center; margin-top: 25px;'>

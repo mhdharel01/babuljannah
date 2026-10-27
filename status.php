@@ -491,13 +491,13 @@ require_once 'includes/header.php';
                                 <div>
                                     <h4 class="font-bold text-primary border-b border-gray-100 pb-2 mb-3 text-xs uppercase tracking-wider">Sekolah Asal & Fisik</h4>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-gray-600">
-                                        <div><span class="text-xs text-gray-400 block">Asal Sekolah:</span> <?= htmlspecialchars($pendaftar['nama_sekolah_asal']) ?> (<?= htmlspecialchars($pendaftar['jenis_sekolah_asal']) ?>)</div>
-                                        <div><span class="text-xs text-gray-400 block">NPSN Sekolah Asal:</span> <?= htmlspecialchars($pendaftar['npsn_sekolah_asal']) ?></div>
-                                        <div class="md:col-span-2"><span class="text-xs text-gray-400 block">Alamat Sekolah Asal:</span> <?= htmlspecialchars($pendaftar['alamat_sekolah_asal']) ?></div>
+                                        <div><span class="text-xs text-gray-400 block">Asal Sekolah:</span> <?= htmlspecialchars((string)($pendaftar['nama_sekolah_asal'] ?? '-')) ?> (<?= htmlspecialchars((string)($pendaftar['jenis_sekolah_asal'] ?? '-')) ?>)</div>
+                                        <div><span class="text-xs text-gray-400 block">NPSN Sekolah Asal:</span> <?= htmlspecialchars((string)($pendaftar['npsn_sekolah_asal'] ?? '-')) ?></div>
+                                        <div class="md:col-span-2"><span class="text-xs text-gray-400 block">Alamat Sekolah Asal:</span> <?= htmlspecialchars((string)($pendaftar['alamat_sekolah_asal'] ?? '-')) ?></div>
                                         <div class="col-span-1 md:col-span-2 my-2 border-b border-gray-100"></div>
-                                        <div><span class="text-xs text-gray-400 block">Tinggi / Berat Badan:</span> <?= htmlspecialchars($pendaftar['tinggi_badan']) ?> cm / <?= htmlspecialchars($pendaftar['berat_badan']) ?> kg</div>
-                                        <div><span class="text-xs text-gray-400 block">Lingkar Kepala:</span> <?= htmlspecialchars($pendaftar['lingkar_kepala']) ?> cm</div>
-                                        <div class="md:col-span-2"><span class="text-xs text-gray-400 block">Riwayat Penyakit:</span> <?= htmlspecialchars($pendaftar['riwayat_penyakit']) ?: 'Tidak Ada' ?></div>
+                                        <div><span class="text-xs text-gray-400 block">Tinggi / Berat Badan:</span> <?= htmlspecialchars((string)($pendaftar['tinggi_badan'] ?? '-')) ?> cm / <?= htmlspecialchars((string)($pendaftar['berat_badan'] ?? '-')) ?> kg</div>
+                                        <div><span class="text-xs text-gray-400 block">Lingkar Kepala:</span> <?= htmlspecialchars((string)($pendaftar['lingkar_kepala'] ?? '-')) ?> cm</div>
+                                        <div class="md:col-span-2"><span class="text-xs text-gray-400 block">Riwayat Penyakit:</span> <?= htmlspecialchars((string)($pendaftar['riwayat_penyakit'] ?? '')) ?: 'Tidak Ada' ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -719,10 +719,28 @@ require_once 'includes/header.php';
                                                 <span><?= format_rupiah(get_biaya_tes($pendaftar['jalur_pendaftaran'] ?? '')) ?></span>
                                             </div>
                                         </div>
-                                        <div class="bg-white p-3.5 rounded-xl border border-gray-250 text-xs">
-                                            <p class="font-bold text-primary mb-1">Transfer ke Rekening Bank Mandiri:</p>
-                                            <p class="text-lg font-bold text-secondary">131-00-1234567-8</p>
-                                            <p class="text-[10px] text-gray-500">Atas Nama: <strong class="text-primary">PONDOK PESANTREN BABUL JANNAH</strong></p>
+                                        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-2xs space-y-2">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-[11px] font-bold text-stone-500 uppercase tracking-wider flex items-center">
+                                                    <i class="fa-solid fa-building-columns text-[#5C3E35] mr-1.5"></i> Transfer ke Rekening Resmi:
+                                                </span>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    Bank BSI
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center justify-between bg-stone-50 p-2.5 rounded-xl border border-stone-200/80">
+                                                <div>
+                                                    <span class="block text-[11px] font-bold text-[#5C3E35]">Bank Syariah Indonesia (BSI)</span>
+                                                    <span class="text-base sm:text-lg font-mono font-black text-[#5C3E35] tracking-wider">7300750308</span>
+                                                </div>
+                                                <button type="button" onclick="copyNorek('7300750308', this)" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-white hover:bg-stone-100 text-[#5C3E35] border border-stone-200 text-xs font-bold transition shadow-2xs group" title="Salin Nomor Rekening">
+                                                    <i class="fa-regular fa-copy group-hover:scale-110 transition-transform"></i>
+                                                    <span class="copy-label">Salin</span>
+                                                </button>
+                                            </div>
+                                            <p class="text-[11px] text-stone-600 font-medium">
+                                                Atas Nama: <strong class="text-[#5C3E35] font-black">Pesantren Babul Jannah</strong>
+                                            </p>
                                         </div>
                                     </div>
                                     <div class="space-y-3">
@@ -1018,6 +1036,34 @@ function previewSelectedFile(input) {
             }
         }
         reader.readAsDataURL(file);
+    }
+}
+
+function copyNorek(text, btn) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+    } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+        } catch (err) {}
+        textArea.remove();
+    }
+    const label = btn.querySelector('.copy-label');
+    if (label) {
+        const originalText = label.textContent;
+        label.textContent = 'Tersalin!';
+        btn.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-300');
+        setTimeout(() => {
+            label.textContent = originalText;
+            btn.classList.remove('bg-emerald-50', 'text-emerald-700', 'border-emerald-300');
+        }, 2000);
     }
 }
 </script>
