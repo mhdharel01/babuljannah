@@ -435,21 +435,21 @@ $pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
     /* 2. Scrollbar Ramping & Modern untuk Area Konten */
     .custom-scrollbar {
         scrollbar-width: thin;
-        scrollbar-color: #CBD5E1 transparent;
+        scrollbar-color: rgba(92, 62, 53, 0.22) transparent;
     }
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
         height: 6px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
+        background: transparent !important;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        background-color: #CBD5E1;
-        border-radius: 9999px;
+        background-color: rgba(92, 62, 53, 0.22) !important;
+        border-radius: 9999px !important;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background-color: #94A3B8;
+        background-color: rgba(92, 62, 53, 0.45) !important;
     }
 
     /* 3. Warna Solid & Gradasi Brand Resmi Babul Jannah */

@@ -70,6 +70,81 @@
             background-color: #4A3029 !important;
             color: #FFFFFF !important;
         }
+
+        /* ======================================================== */
+        /* SCROLLBAR TRANSPARAN SERAGAM GLOBAL (SEMUA HALAMAN ADMIN) */
+        /* ======================================================== */
+        html, body {
+            height: 100%;
+            max-height: 100vh;
+            overflow: hidden !important;
+        }
+
+        /* Firefox */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(92, 62, 53, 0.22) transparent;
+        }
+
+        /* WebKit (Chrome, Edge, Safari, Opera) */
+        ::-webkit-scrollbar {
+            width: 6px !important;
+            height: 6px !important;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent !important;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(92, 62, 53, 0.22) !important;
+            border-radius: 9999px !important;
+            border: 1px solid transparent !important;
+            background-clip: padding-box !important;
+            transition: background-color 0.2s ease !important;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(92, 62, 53, 0.45) !important;
+        }
+        ::-webkit-scrollbar-corner {
+            background: transparent !important;
+        }
+
+        /* Utility .custom-scrollbar yang 100% transparan */
+        .custom-scrollbar {
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(92, 62, 53, 0.22) transparent !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px !important;
+            height: 6px !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(92, 62, 53, 0.22) !important;
+            border-radius: 9999px !important;
+            border: 1px solid transparent !important;
+            background-clip: padding-box !important;
+            transition: background-color 0.2s ease !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(92, 62, 53, 0.45) !important;
+        }
+
+        /* Scrollbar khusus Sidebar Gelap (Thumb Putih Transparan) */
+        aside nav,
+        aside .custom-scrollbar {
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+        }
+        aside nav::-webkit-scrollbar-thumb,
+        aside .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        aside nav::-webkit-scrollbar-thumb:hover,
+        aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.4) !important;
+        }
     </style>
 
     <!-- Custom CSS/JS from specific pages -->

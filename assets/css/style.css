@@ -17,20 +17,30 @@ h1, h2, h3, h4, h5, h6 {
     letter-spacing: -0.02em;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar Transparan & Halus */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(92, 62, 53, 0.22) transparent;
+}
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #F5F0EB;
+    background: transparent !important;
 }
 ::-webkit-scrollbar-thumb {
-    background: #8D6E63;
-    border-radius: 4px;
+    background: rgba(92, 62, 53, 0.22) !important;
+    border-radius: 9999px !important;
+    border: 1px solid transparent !important;
+    background-clip: padding-box !important;
+    transition: background-color 0.2s ease !important;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #3E2723;
+    background: rgba(92, 62, 53, 0.45) !important;
+}
+::-webkit-scrollbar-corner {
+    background: transparent !important;
 }
 
 /* Print Stylesheet */

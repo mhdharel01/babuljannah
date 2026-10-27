@@ -278,19 +278,23 @@ include __DIR__ . '/includes/head.php';
         max-height: 100vh;
         overflow: hidden !important;
     }
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(92, 62, 53, 0.22) transparent;
+    }
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
         height: 6px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-        background: #F3F4F6;
+        background: transparent !important;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #D1D5DB;
-        border-radius: 9999px;
+        background-color: rgba(92, 62, 53, 0.22) !important;
+        border-radius: 9999px !important;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #9CA3AF;
+        background-color: rgba(92, 62, 53, 0.45) !important;
     }
 
     /* Brand Tokens */
