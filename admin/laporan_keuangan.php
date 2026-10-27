@@ -31,7 +31,7 @@ try {
         }
     }
 } catch (Throwable $e) {
-    // Gunakan fallback default
+    // Fallback default
 }
 
 // Helper penentu nominal santri berdasarkan jenjang
@@ -410,48 +410,200 @@ $has_active_filter = ($q !== '' || $filter_gelombang !== '' || $filter_metode !=
 $current_filter_params = $_GET;
 unset($current_filter_params['export'], $current_filter_params['page']);
 $export_url_query = http_build_query(array_merge($current_filter_params, ['export' => 'excel']));
+
+// Hitung persentase saluran
+$pct_bsi = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['transfer_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
+$pct_tunai = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['tunai_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
+$pct_lain = max(0, 100 - $pct_bsi - $pct_tunai);
+
+// Hitung persentase jenjang
+$pct_smp = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['smp_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
+$pct_sma = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['sma_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
+$pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
 ?>
 <?php include __DIR__ . '/includes/head.php'; ?>
 
-<body class="bg-[#F8F9FA] text-gray-800 font-sans antialiased min-h-screen flex selection:bg-brand-primary selection:text-white">
+<!-- Custom CSS: Anti-Double Scroll & Solid Colors Fallback -->
+<style>
+    /* 1. Hilangkan Double Scroll: Kunci Viewport Browser */
+    html, body {
+        height: 100% !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
+    }
 
+    /* 2. Scrollbar Ramping & Modern untuk Area Konten */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #CBD5E1 transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #CBD5E1;
+        border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: #94A3B8;
+    }
+
+    /* 3. Warna Solid & Gradasi Brand Resmi Babul Jannah */
+    .bg-brand-primary { background-color: #5C3E35 !important; }
+    .bg-brand-dark { background-color: #3E2723 !important; }
+    .bg-brand-deep { background-color: #4A3029 !important; }
+    .bg-brand-secondary { background-color: #A17A6F !important; }
+    .text-brand-primary { color: #5C3E35 !important; }
+    .text-brand-secondary { color: #A17A6F !important; }
+
+    /* Kartu Utama: Total Pemasukan Riil (Dipastikan Solid Coklat Mewah & Teks Kontras Putih) */
+    .kpi-card-utama {
+        background: linear-gradient(135deg, #4A3029 0%, #5C3E35 60%, #3E2723 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid #6E493F !important;
+        box-shadow: 0 4px 14px rgba(62, 39, 35, 0.18) !important;
+    }
+    .kpi-card-utama .kpi-label {
+        color: #F3EDE6 !important;
+    }
+    .kpi-card-utama .kpi-number {
+        color: #FFFFFF !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+    }
+    .kpi-card-utama .kpi-badge {
+        background-color: rgba(255, 255, 255, 0.22) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+
+    /* Kartu Kas Bank BSI */
+    .kpi-card-bsi {
+        background: #FFFFFF !important;
+        border: 1px solid #BFDBFE !important;
+    }
+    .kpi-card-bsi .kpi-number {
+        color: #1E40AF !important;
+    }
+    .kpi-card-bsi .kpi-badge {
+        background-color: #EFF6FF !important;
+        color: #1D4ED8 !important;
+        border: 1px solid #BFDBFE !important;
+    }
+
+    /* Kartu Kas Tunai */
+    .kpi-card-tunai {
+        background: #FFFFFF !important;
+        border: 1px solid #FDE68A !important;
+    }
+    .kpi-card-tunai .kpi-number {
+        color: #B45309 !important;
+    }
+    .kpi-card-tunai .kpi-badge {
+        background-color: #FFFBEB !important;
+        color: #B45309 !important;
+        border: 1px solid #FDE68A !important;
+    }
+
+    /* Kartu Potensi Tertunda */
+    .kpi-card-pending {
+        background: #FFFFFF !important;
+        border: 1px solid #E9D5FF !important;
+    }
+    .kpi-card-pending .kpi-number {
+        color: #6B21A8 !important;
+    }
+    .kpi-card-pending .kpi-badge {
+        background-color: #FAF5FF !important;
+        color: #7E22CE !important;
+        border: 1px solid #E9D5FF !important;
+    }
+
+    /* Warna Bar Progress Terjamin Solid (Tidak Bergantung Purge Tailwind) */
+    .bar-seg-bsi { background-color: #2563EB !important; }
+    .bar-seg-tunai { background-color: #D97706 !important; }
+    .bar-seg-lainnya { background-color: #9CA3AF !important; }
+
+    .bar-seg-smp { background-color: #0D9488 !important; }
+    .bar-seg-sma { background-color: #4F46E5 !important; }
+    .bar-seg-kepondokan { background-color: #D97706 !important; }
+
+    /* Badge Tabel Terjamin Solid & Kontras */
+    .badge-smp-it {
+        background-color: #CCFBF1 !important;
+        color: #0F766E !important;
+        border: 1px solid #99F6E4 !important;
+    }
+    .badge-sma-it {
+        background-color: #E0E7FF !important;
+        color: #3730A3 !important;
+        border: 1px solid #C7D2FE !important;
+    }
+    .badge-ponpes {
+        background-color: #FEF3C7 !important;
+        color: #92400E !important;
+        border: 1px solid #FDE68A !important;
+    }
+    .badge-chan-bsi {
+        background-color: #EFF6FF !important;
+        color: #1D4ED8 !important;
+        border: 1px solid #BFDBFE !important;
+    }
+    .badge-chan-tunai {
+        background-color: #FFFBEB !important;
+        color: #B45309 !important;
+        border: 1px solid #FDE68A !important;
+    }
+    .badge-chan-manual {
+        background-color: #F3F4F6 !important;
+        color: #4B5563 !important;
+        border: 1px solid #E5E7EB !important;
+    }
+</style>
+
+<body class="bg-gray-100 flex h-screen overflow-hidden text-[#2F2522] font-sans antialiased">
+
+    <!-- Desktop Sidebar Navigation -->
     <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
-    <div class="flex-1 min-w-0 flex flex-col h-screen overflow-hidden bg-[#F8F9FA]">
+    <!-- Main Content Area -->
+    <div class="flex-grow flex flex-col h-full overflow-hidden min-w-0">
         
+        <!-- Header Navbar -->
         <?php include __DIR__ . '/includes/header.php'; ?>
 
-        <main class="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto space-y-6">
+        <!-- Scrollable Dashboard Main Grid (Hanya 1 Scrollbar Bersih Ini) -->
+        <main class="flex-grow p-4 sm:p-5 lg:p-6 overflow-y-auto space-y-5 custom-scrollbar bg-gray-50/70">
 
             <!-- ======================================================== -->
-            <!-- 1. HERO & ACTION BAR -->
+            <!-- 1. TOP ACTION & REKONSILIASI BAR (COMPACT & CLEAN) -->
             <!-- ======================================================== -->
-            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-gray-200/80 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200/80 shadow-xs">
                 <div>
-                    <div class="flex items-center space-x-2 text-xs font-bold text-brand-primary uppercase tracking-wider mb-1">
+                    <div class="flex items-center space-x-2 text-[11px] font-extrabold text-brand-primary uppercase tracking-wider">
                         <i class="fa-solid fa-file-invoice-dollar"></i>
-                        <span>Laporan Keuangan & Rekonsiliasi PSB</span>
+                        <span>Rekapitulasi Keuangan PSB</span>
                         <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span class="text-emerald-700 font-semibold normal-case">T.A 2026/2027</span>
+                        <span class="text-emerald-700 normal-case font-bold">T.A 2026/2027</span>
                     </div>
-                    <h2 class="text-xl sm:text-2xl font-black text-[#2F2522] tracking-tight">
-                        Rekap Penerimaan Biaya Formulir & Tes Seleksi
-                    </h2>
-                    <p class="text-xs text-gray-500 mt-1">
-                        Monitoring pemasukan kas riil, mutasi Bank BSI, penerimaan tunai panitia, dan rekonsiliasi pembayaran calon santri.
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        Rekonsiliasi mutasi Bank BSI, penerimaan tunai panitia, dan rincian biaya pendaftaran santri baru.
                     </p>
                 </div>
 
                 <!-- Action Buttons & Bank Rekening Badge -->
-                <div class="flex flex-wrap items-center gap-2.5">
+                <div class="flex flex-wrap items-center gap-2">
                     <!-- Bank BSI Quick Copy Pill -->
-                    <div class="flex items-center space-x-2 bg-emerald-50/80 border border-emerald-200/90 px-3.5 py-2 rounded-2xl text-xs text-emerald-900 shadow-2xs">
-                        <div class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-[11px] shadow-xs">
+                    <div class="flex items-center space-x-2 bg-emerald-50/90 border border-emerald-300/80 px-3 py-1.5 rounded-xl text-xs text-emerald-900 shadow-2xs">
+                        <div class="w-6 h-6 rounded-md bg-emerald-700 text-white flex items-center justify-center font-black text-[10px] shadow-xs">
                             BSI
                         </div>
                         <div class="leading-tight">
-                            <span class="text-[10px] text-emerald-700 block font-bold uppercase">Rekening Resmi</span>
-                            <span class="font-mono font-extrabold text-emerald-950 text-xs">7300750308</span>
+                            <span class="text-[9px] text-emerald-700 block font-bold uppercase tracking-wider">Rekening Resmi</span>
+                            <span class="font-mono font-black text-emerald-950 text-xs">7300750308</span>
                         </div>
                         <button type="button" onclick="navigator.clipboard.writeText('7300750308'); alert('Nomor rekening BSI 7300750308 berhasil disalin!');" class="p-1 text-emerald-700 hover:text-emerald-950 hover:bg-emerald-100 rounded-md transition" title="Salin No Rekening">
                             <i class="fa-regular fa-copy text-xs"></i>
@@ -459,238 +611,222 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                     </div>
 
                     <!-- Tombol Export Excel -->
-                    <a href="?<?= htmlspecialchars($export_url_query) ?>" class="inline-flex items-center space-x-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-2xl text-xs shadow-xs hover:shadow transition transform active:scale-95" title="Unduh Laporan Keuangan format Excel">
-                        <i class="fa-solid fa-file-excel text-sm"></i>
-                        <span>Ekspor Excel (.xls)</span>
+                    <a href="?<?= htmlspecialchars($export_url_query) ?>" class="inline-flex items-center space-x-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-3.5 rounded-xl text-xs shadow-xs hover:shadow transition transform active:scale-95" title="Unduh Laporan Keuangan format Excel">
+                        <i class="fa-solid fa-file-excel text-xs"></i>
+                        <span>Export Excel (.xls)</span>
                     </a>
 
                     <!-- Tombol Cetak / Print -->
-                    <button type="button" onclick="window.print()" class="inline-flex items-center space-x-2 bg-white hover:bg-gray-100 text-gray-700 font-bold py-2.5 px-4 rounded-2xl text-xs border border-gray-200 shadow-xs hover:shadow transition" title="Cetak Dokumen Resmi">
-                        <i class="fa-solid fa-print text-sm text-gray-500"></i>
-                        <span>Cetak Laporan</span>
+                    <button type="button" onclick="window.print()" class="inline-flex items-center space-x-1.5 bg-white hover:bg-gray-100 text-gray-700 font-bold py-2 px-3 rounded-xl text-xs border border-gray-200 shadow-xs hover:shadow transition" title="Cetak Dokumen Resmi">
+                        <i class="fa-solid fa-print text-xs text-gray-500"></i>
+                        <span>Cetak</span>
                     </button>
                 </div>
             </div>
 
             <!-- ======================================================== -->
-            <!-- 2. KARTU METRIK UTAMA (FINANCIAL KPI DECK) -->
+            <!-- 2. KARTU METRIK UTAMA (SOLID COLORS & GUARANTEED CONTRAST) -->
             <!-- ======================================================== -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
-                <!-- 1. Total Pemasukan Valid -->
-                <div class="bg-gradient-to-br from-[#5C3E35] to-[#452D26] text-white p-5 rounded-3xl shadow-sm relative overflow-hidden flex flex-col justify-between">
-                    <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/5 rounded-full blur-xl pointer-events-none"></div>
+                <!-- 1. Total Pemasukan Valid (Brand Gradient Solid Coklat Mewah) -->
+                <div class="kpi-card-utama p-5 rounded-2xl flex flex-col justify-between">
                     <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-white/80 flex items-center gap-1.5">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider kpi-label flex items-center gap-1.5">
                                 <i class="fa-solid fa-vault text-amber-300"></i> Total Pemasukan Riil
                             </span>
-                            <span class="bg-white/20 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                            <span class="kpi-badge text-[10px] font-black px-2.5 py-0.5 rounded-full">
                                 <?= number_format($kpi_global['total_lunas']) ?> Transaksi
                             </span>
                         </div>
-                        <div class="text-2xl sm:text-3xl font-black tracking-tight text-white mb-1">
+                        <div class="text-2xl sm:text-3xl font-black tracking-tight kpi-number mb-1">
                             Rp <?= number_format($kpi_global['total_uang_lunas'], 0, ',', '.') ?>
                         </div>
                     </div>
-                    <div class="pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-white/80">
+                    <div class="pt-2.5 border-t border-white/15 flex items-center justify-between text-[11px] kpi-label">
                         <span>Penerimaan Sah Lunas</span>
-                        <span class="text-emerald-300 font-bold"><i class="fa-solid fa-check-circle"></i> 100% Valid</span>
+                        <span class="text-emerald-300 font-extrabold"><i class="fa-solid fa-circle-check"></i> 100% Valid</span>
                     </div>
                 </div>
 
                 <!-- 2. Mutasi Masuk Bank BSI (Transfer) -->
-                <div class="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-blue-300 transition-all">
+                <div class="kpi-card-bsi p-5 rounded-2xl shadow-xs flex flex-col justify-between hover:border-blue-400 transition-all">
                     <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                                 <i class="fa-solid fa-building-columns text-blue-600"></i> Kas Bank BSI
                             </span>
-                            <span class="bg-blue-50 text-blue-700 border border-blue-200/70 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                            <span class="kpi-badge text-[10px] font-black px-2.5 py-0.5 rounded-full">
                                 <?= number_format($kpi_global['transfer_lunas']) ?> Santri
                             </span>
                         </div>
-                        <div class="text-2xl sm:text-3xl font-black tracking-tight text-blue-900 mb-1">
+                        <div class="text-2xl sm:text-3xl font-black tracking-tight kpi-number mb-1">
                             Rp <?= number_format($kpi_global['transfer_uang'], 0, ',', '.') ?>
                         </div>
                     </div>
-                    <div class="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
-                        <span>Via Mutasi BSI 7300750308</span>
-                        <?php 
-                        $pct_bsi = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['transfer_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
-                        ?>
-                        <span class="text-blue-700 font-bold"><?= $pct_bsi ?>% Kas</span>
+                    <div class="pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                        <span>Mutasi No. 7300750308</span>
+                        <span class="text-blue-700 font-extrabold"><?= $pct_bsi ?>% Porsi Kas</span>
                     </div>
                 </div>
 
                 <!-- 3. Penerimaan Kasir Panitia (Tunai / Cash) -->
-                <div class="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-amber-300 transition-all">
+                <div class="kpi-card-tunai p-5 rounded-2xl shadow-xs flex flex-col justify-between hover:border-amber-400 transition-all">
                     <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                                 <i class="fa-solid fa-hand-holding-dollar text-amber-600"></i> Kas Tunai Loket
                             </span>
-                            <span class="bg-amber-50 text-amber-800 border border-amber-200/70 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                            <span class="kpi-badge text-[10px] font-black px-2.5 py-0.5 rounded-full">
                                 <?= number_format($kpi_global['tunai_lunas']) ?> Santri
                             </span>
                         </div>
-                        <div class="text-2xl sm:text-3xl font-black tracking-tight text-amber-950 mb-1">
+                        <div class="text-2xl sm:text-3xl font-black tracking-tight kpi-number mb-1">
                             Rp <?= number_format($kpi_global['tunai_uang'], 0, ',', '.') ?>
                         </div>
                     </div>
-                    <div class="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
-                        <span>Fisik Kasir Sekretariat</span>
-                        <?php 
-                        $pct_tunai = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['tunai_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
-                        ?>
-                        <span class="text-amber-700 font-bold"><?= $pct_tunai ?>% Kas</span>
+                    <div class="pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                        <span>Fisik Kasir Panitia</span>
+                        <span class="text-amber-700 font-extrabold"><?= $pct_tunai ?>% Porsi Kas</span>
                     </div>
                 </div>
 
                 <!-- 4. Piutang & Dana Tertunda (Belum Validasi / Belum Bayar) -->
-                <div class="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-purple-300 transition-all">
+                <div class="kpi-card-pending p-5 rounded-2xl shadow-xs flex flex-col justify-between hover:border-purple-400 transition-all">
                     <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                                 <i class="fa-solid fa-clock-rotate-left text-purple-600"></i> Potensi Tertunda
                             </span>
-                            <span class="bg-purple-50 text-purple-700 border border-purple-200/70 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                            <span class="kpi-badge text-[10px] font-black px-2.5 py-0.5 rounded-full">
                                 <?= number_format($kpi_global['pending_verifikasi'] + $kpi_global['belum_bayar']) ?> Anak
                             </span>
                         </div>
-                        <div class="text-2xl sm:text-3xl font-black tracking-tight text-purple-950 mb-1">
+                        <div class="text-2xl sm:text-3xl font-black tracking-tight kpi-number mb-1">
                             Rp <?= number_format($kpi_global['pending_uang'] + $kpi_global['belum_bayar_uang'], 0, ',', '.') ?>
                         </div>
                     </div>
-                    <div class="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                    <div class="pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
                         <span><?= $kpi_global['pending_verifikasi'] ?> Tunggu Slip, <?= $kpi_global['belum_bayar'] ?> Belum</span>
-                        <a href="pendaftar.php?status=Menunggu+Verifikasi" class="text-purple-700 font-bold hover:underline">Verifikasi <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
+                        <a href="pendaftar.php?status=Menunggu+Verifikasi" class="text-purple-700 font-extrabold hover:underline">Verifikasi <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
                     </div>
                 </div>
 
             </div>
 
             <!-- ======================================================== -->
-            <!-- 3. VISUAL ANALYTICS: CHANNEL RATIO & PROGRAM BREAKDOWN -->
+            <!-- 3. VISUAL ANALYTICS: SOLID CHANNEL RATIO & JENJANG -->
             <!-- ======================================================== -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 
                 <!-- Rasio Saluran Pembayaran (BSI vs Tunai) -->
-                <div class="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-xs flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-4">
+                <div class="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-2">
-                            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
+                            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm border border-blue-100">
                                 <i class="fa-solid fa-chart-pie"></i>
                             </div>
                             <div>
-                                <h3 class="font-extrabold text-sm text-gray-800">Komposisi Saluran Pembayaran</h3>
-                                <p class="text-[11px] text-gray-400">Rasio penerimaan rekening BSI vs tunai kasir</p>
+                                <h3 class="font-extrabold text-xs sm:text-sm text-gray-900">Komposisi Saluran Pembayaran</h3>
+                                <p class="text-[10px] text-gray-400">Rasio mutasi rekening BSI vs tunai kasir sekretariat</p>
                             </div>
                         </div>
-                        <span class="text-xs font-bold text-gray-500">
-                            Total: Rp <?= number_format($kpi_global['total_uang_lunas'], 0, ',', '.') ?>
+                        <span class="text-xs font-black text-gray-700">
+                            Rp <?= number_format($kpi_global['total_uang_lunas'], 0, ',', '.') ?>
                         </span>
                     </div>
 
-                    <!-- Progress Bar Multi-Segment -->
-                    <div class="w-full bg-gray-100 h-4 rounded-full overflow-hidden flex shadow-inner mb-4">
+                    <!-- Progress Bar Multi-Segment dengan Warna Terjamin -->
+                    <div class="w-full bg-gray-200 h-3.5 rounded-full overflow-hidden flex shadow-inner mb-3">
                         <?php if ($pct_bsi > 0): ?>
-                            <div style="width: <?= $pct_bsi ?>%" class="bg-blue-600 h-full transition-all relative group" title="BSI Transfer: <?= $pct_bsi ?>%"></div>
+                            <div style="width: <?= $pct_bsi ?>%" class="bar-seg-bsi h-full transition-all" title="BSI Transfer: <?= $pct_bsi ?>%"></div>
                         <?php endif; ?>
                         <?php if ($pct_tunai > 0): ?>
-                            <div style="width: <?= $pct_tunai ?>%" class="bg-amber-500 h-full transition-all relative group" title="Tunai: <?= $pct_tunai ?>%"></div>
+                            <div style="width: <?= $pct_tunai ?>%" class="bar-seg-tunai h-full transition-all" title="Tunai: <?= $pct_tunai ?>%"></div>
                         <?php endif; ?>
-                        <?php 
-                        $pct_lain = max(0, 100 - $pct_bsi - $pct_tunai);
-                        if ($pct_lain > 0): 
-                        ?>
-                            <div style="width: <?= $pct_lain ?>%" class="bg-gray-400 h-full transition-all" title="Lainnya: <?= $pct_lain ?>%"></div>
+                        <?php if ($pct_lain > 0): ?>
+                            <div style="width: <?= $pct_lain ?>%" class="bar-seg-lainnya h-full transition-all" title="Lainnya: <?= $pct_lain ?>%"></div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Legend Items -->
-                    <div class="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-gray-50">
+                    <div class="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-gray-100">
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 flex-shrink-0"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bar-seg-bsi flex-shrink-0"></span>
                             <div>
-                                <div class="font-bold text-gray-800">Transfer BSI (<?= $pct_bsi ?>%)</div>
-                                <div class="text-[10px] text-gray-500">Rp <?= number_format($kpi_global['transfer_uang'], 0, ',', '.') ?></div>
+                                <div class="font-bold text-gray-800 text-[11px]">BSI (<?= $pct_bsi ?>%)</div>
+                                <div class="text-[10px] text-gray-500 font-semibold">Rp <?= number_format($kpi_global['transfer_uang'], 0, ',', '.') ?></div>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bar-seg-tunai flex-shrink-0"></span>
                             <div>
-                                <div class="font-bold text-gray-800">Tunai Kasir (<?= $pct_tunai ?>%)</div>
-                                <div class="text-[10px] text-gray-500">Rp <?= number_format($kpi_global['tunai_uang'], 0, ',', '.') ?></div>
+                                <div class="font-bold text-gray-800 text-[11px]">Tunai (<?= $pct_tunai ?>%)</div>
+                                <div class="text-[10px] text-gray-500 font-semibold">Rp <?= number_format($kpi_global['tunai_uang'], 0, ',', '.') ?></div>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bar-seg-lainnya flex-shrink-0"></span>
                             <div>
-                                <div class="font-bold text-gray-800">Lainnya (<?= $pct_lain ?>%)</div>
-                                <div class="text-[10px] text-gray-500">Rp <?= number_format($kpi_global['lainnya_uang'], 0, ',', '.') ?></div>
+                                <div class="font-bold text-gray-800 text-[11px]">Lainnya (<?= $pct_lain ?>%)</div>
+                                <div class="text-[10px] text-gray-500 font-semibold">Rp <?= number_format($kpi_global['lainnya_uang'], 0, ',', '.') ?></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Kontribusi per Jenjang Pendidikan -->
-                <div class="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-xs flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-4">
+                <div class="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-2">
-                            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+                            <div class="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center text-sm border border-teal-100">
                                 <i class="fa-solid fa-graduation-cap"></i>
                             </div>
                             <div>
-                                <h3 class="font-extrabold text-sm text-gray-800">Penerimaan Berdasarkan Jenjang</h3>
-                                <p class="text-[11px] text-gray-400">Kontribusi nominal per program sekolah santri</p>
+                                <h3 class="font-extrabold text-xs sm:text-sm text-gray-900">Penerimaan Berdasarkan Jenjang</h3>
+                                <p class="text-[10px] text-gray-400">SMP: Rp <?= number_format($biaya_tes_smp, 0, ',', '.') ?> | SMA: Rp <?= number_format($biaya_tes_sma, 0, ',', '.') ?></p>
                             </div>
                         </div>
-                        <span class="text-xs font-bold text-gray-500">
-                            SMP: Rp <?= number_format($biaya_tes_smp, 0, ',', '.') ?> | SMA: Rp <?= number_format($biaya_tes_sma, 0, ',', '.') ?>
+                        <span class="text-xs font-black text-gray-700">
+                            <?= number_format($kpi_global['total_lunas']) ?> Santri Lunas
                         </span>
                     </div>
 
-                    <?php 
-                    $pct_smp = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['smp_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
-                    $pct_sma = $kpi_global['total_uang_lunas'] > 0 ? round(($kpi_global['sma_uang'] / $kpi_global['total_uang_lunas']) * 100) : 0;
-                    $pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
-                    ?>
-
-                    <!-- Progress Bar Multi-Segment -->
-                    <div class="w-full bg-gray-100 h-4 rounded-full overflow-hidden flex shadow-inner mb-4">
+                    <!-- Progress Bar Multi-Segment dengan Warna Terjamin -->
+                    <div class="w-full bg-gray-200 h-3.5 rounded-full overflow-hidden flex shadow-inner mb-3">
                         <?php if ($pct_smp > 0): ?>
-                            <div style="width: <?= $pct_smp ?>%" class="bg-teal-600 h-full transition-all" title="SMP IT: <?= $pct_smp ?>%"></div>
+                            <div style="width: <?= $pct_smp ?>%" class="bar-seg-smp h-full transition-all" title="SMP IT: <?= $pct_smp ?>%"></div>
                         <?php endif; ?>
                         <?php if ($pct_sma > 0): ?>
-                            <div style="width: <?= $pct_sma ?>%" class="bg-indigo-600 h-full transition-all" title="SMA IT: <?= $pct_sma ?>%"></div>
+                            <div style="width: <?= $pct_sma ?>%" class="bar-seg-sma h-full transition-all" title="SMA IT: <?= $pct_sma ?>%"></div>
                         <?php endif; ?>
                         <?php if ($pct_lain_jenjang > 0): ?>
-                            <div style="width: <?= $pct_lain_jenjang ?>%" class="bg-amber-600 h-full transition-all" title="Kepondokan/Lainnya: <?= $pct_lain_jenjang ?>%"></div>
+                            <div style="width: <?= $pct_lain_jenjang ?>%" class="bar-seg-kepondokan h-full transition-all" title="Kepondokan: <?= $pct_lain_jenjang ?>%"></div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Legend Items -->
-                    <div class="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-gray-50">
+                    <div class="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-gray-100">
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-teal-600 flex-shrink-0"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bar-seg-smp flex-shrink-0"></span>
                             <div>
-                                <div class="font-bold text-gray-800">SMP IT (<?= $pct_smp ?>%)</div>
-                                <div class="text-[10px] text-gray-500"><?= $kpi_global['smp_lunas'] ?> Santri - Rp <?= number_format($kpi_global['smp_uang'], 0, ',', '.') ?></div>
+                                <div class="font-bold text-gray-800 text-[11px]">SMP IT (<?= $pct_smp ?>%)</div>
+                                <div class="text-[10px] text-gray-500 font-semibold"><?= $kpi_global['smp_lunas'] ?> Santri - Rp <?= number_format($kpi_global['smp_uang'], 0, ',', '.') ?></div>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 flex-shrink-0"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bar-seg-sma flex-shrink-0"></span>
                             <div>
-                                <div class="font-bold text-gray-800">SMA IT (<?= $pct_sma ?>%)</div>
-                                <div class="text-[10px] text-gray-500"><?= $kpi_global['sma_lunas'] ?> Santri - Rp <?= number_format($kpi_global['sma_uang'], 0, ',', '.') ?></div>
+                                <div class="font-bold text-gray-800 text-[11px]">SMA IT (<?= $pct_sma ?>%)</div>
+                                <div class="text-[10px] text-gray-500 font-semibold"><?= $kpi_global['sma_lunas'] ?> Santri - Rp <?= number_format($kpi_global['sma_uang'], 0, ',', '.') ?></div>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-amber-600 flex-shrink-0"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bar-seg-kepondokan flex-shrink-0"></span>
                             <div>
-                                <div class="font-bold text-gray-800">Kepondokan (<?= $pct_lain_jenjang ?>%)</div>
-                                <div class="text-[10px] text-gray-500"><?= number_format($kpi_global['total_lunas'] - $kpi_global['smp_lunas'] - $kpi_global['sma_lunas']) ?> Santri</div>
+                                <div class="font-bold text-gray-800 text-[11px]">Kepondokan (<?= $pct_lain_jenjang ?>%)</div>
+                                <div class="text-[10px] text-gray-500 font-semibold"><?= number_format($kpi_global['total_lunas'] - $kpi_global['smp_lunas'] - $kpi_global['sma_lunas']) ?> Santri</div>
                             </div>
                         </div>
                     </div>
@@ -701,32 +837,32 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
             <!-- ======================================================== -->
             <!-- 4. SMART FILTER & SEARCH TOOLBAR -->
             <!-- ======================================================== -->
-            <div class="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-xs">
-                <form method="GET" action="laporan_keuangan.php" class="space-y-4">
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200/80 shadow-xs">
+                <form method="GET" action="laporan_keuangan.php" class="space-y-3.5">
                     
                     <!-- Quick Period Buttons Row -->
-                    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-gray-100">
                         <div class="flex items-center space-x-2">
-                            <span class="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+                            <span class="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                                 <i class="fa-regular fa-calendar-check text-brand-primary"></i> Periode Cepat:
                             </span>
                             <div class="flex flex-wrap gap-1.5">
-                                <a href="laporan_keuangan.php" class="px-3 py-1 rounded-xl text-xs font-bold transition <?= (!$has_active_filter || $quick_period === '') && $filter_tgl_mulai === '' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
+                                <a href="laporan_keuangan.php" class="px-3 py-1 rounded-lg text-xs font-bold transition <?= (!$has_active_filter || $quick_period === '') && $filter_tgl_mulai === '' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                                     Semua Waktu
                                 </a>
-                                <a href="laporan_keuangan.php?quick_period=today" class="px-3 py-1 rounded-xl text-xs font-bold transition <?= $quick_period === 'today' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
+                                <a href="laporan_keuangan.php?quick_period=today" class="px-3 py-1 rounded-lg text-xs font-bold transition <?= $quick_period === 'today' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                                     Hari Ini
                                 </a>
-                                <a href="laporan_keuangan.php?quick_period=yesterday" class="px-3 py-1 rounded-xl text-xs font-bold transition <?= $quick_period === 'yesterday' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
+                                <a href="laporan_keuangan.php?quick_period=yesterday" class="px-3 py-1 rounded-lg text-xs font-bold transition <?= $quick_period === 'yesterday' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                                     Kemarin
                                 </a>
-                                <a href="laporan_keuangan.php?quick_period=this_week" class="px-3 py-1 rounded-xl text-xs font-bold transition <?= $quick_period === 'this_week' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
+                                <a href="laporan_keuangan.php?quick_period=this_week" class="px-3 py-1 rounded-lg text-xs font-bold transition <?= $quick_period === 'this_week' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                                     Minggu Ini
                                 </a>
-                                <a href="laporan_keuangan.php?quick_period=this_month" class="px-3 py-1 rounded-xl text-xs font-bold transition <?= $quick_period === 'this_month' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
+                                <a href="laporan_keuangan.php?quick_period=this_month" class="px-3 py-1 rounded-lg text-xs font-bold transition <?= $quick_period === 'this_month' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                                     Bulan Ini
                                 </a>
-                                <a href="laporan_keuangan.php?quick_period=last_month" class="px-3 py-1 rounded-xl text-xs font-bold transition <?= $quick_period === 'last_month' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
+                                <a href="laporan_keuangan.php?quick_period=last_month" class="px-3 py-1 rounded-lg text-xs font-bold transition <?= $quick_period === 'last_month' ? 'bg-brand-primary text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                                     Bulan Lalu
                                 </a>
                             </div>
@@ -734,9 +870,9 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
 
                         <!-- Reset Link -->
                         <?php if ($has_active_filter): ?>
-                            <a href="laporan_keuangan.php" class="text-xs text-rose-600 hover:text-rose-800 font-bold flex items-center space-x-1 transition">
+                            <a href="laporan_keuangan.php" class="text-xs text-rose-600 hover:text-rose-800 font-extrabold flex items-center space-x-1 transition">
                                 <i class="fa-solid fa-arrow-rotate-left"></i>
-                                <span>Reset Semua Filter</span>
+                                <span>Reset Filter</span>
                             </a>
                         <?php endif; ?>
                     </div>
@@ -746,16 +882,16 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                         
                         <!-- Search Box (Col 4) -->
                         <div class="lg:col-span-4">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Pencarian Santri</label>
+                            <label class="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Pencarian Santri</label>
                             <div class="relative">
-                                <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="Cari No. Reg, Nama, atau NISN..." class="w-full pl-9 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition">
+                                <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="No. Registrasi, Nama, atau NISN..." class="w-full pl-9 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition">
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-gray-400"></i>
                             </div>
                         </div>
 
                         <!-- Filter Gelombang (Col 2) -->
                         <div class="lg:col-span-2">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Gelombang</label>
+                            <label class="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Gelombang</label>
                             <select name="gelombang" class="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition font-semibold text-gray-700">
                                 <option value="">Semua Gelombang</option>
                                 <?php foreach ($daftar_gelombang as $g): ?>
@@ -768,7 +904,7 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
 
                         <!-- Filter Saluran Bayar (Col 2) -->
                         <div class="lg:col-span-2">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Saluran Bayar</label>
+                            <label class="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Saluran Bayar</label>
                             <select name="metode" class="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition font-semibold text-gray-700">
                                 <option value="">Semua Saluran</option>
                                 <option value="Transfer" <?= $filter_metode === 'Transfer' ? 'selected' : '' ?>>Transfer Bank BSI</option>
@@ -779,7 +915,7 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
 
                         <!-- Filter Jenjang / Jalur (Col 2) -->
                         <div class="lg:col-span-2">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Jenjang / Jalur</label>
+                            <label class="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Jenjang / Jalur</label>
                             <select name="jalur" class="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition font-semibold text-gray-700">
                                 <option value="">Semua Jenjang</option>
                                 <option value="SMP IT" <?= $filter_jalur === 'SMP IT' ? 'selected' : '' ?>>SMP IT (Rp <?= number_format($biaya_tes_smp, 0, ',', '.') ?>)</option>
@@ -799,8 +935,8 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                     </div>
 
                     <!-- Date Range Inputs -->
-                    <div class="flex flex-wrap items-center gap-3 pt-2 text-xs text-gray-600">
-                        <span class="font-bold text-gray-500 text-[10px] uppercase tracking-wider">Rentang Validasi Lunas:</span>
+                    <div class="flex flex-wrap items-center gap-2.5 pt-1 text-xs text-gray-600">
+                        <span class="font-extrabold text-gray-500 text-[10px] uppercase tracking-wider">Rentang Tanggal Lunas:</span>
                         <div class="flex items-center space-x-1.5">
                             <input type="date" name="tgl_mulai" value="<?= htmlspecialchars($filter_tgl_mulai) ?>" class="px-2.5 py-1 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-brand-primary">
                             <span class="text-gray-400">s/d</span>
@@ -815,15 +951,15 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
 
                 <!-- Filter Notification Pill -->
                 <?php if ($has_active_filter): ?>
-                    <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between text-xs bg-amber-50/70 border border-amber-200/60 p-3 rounded-2xl text-amber-900">
+                    <div class="mt-3 pt-2.5 border-t border-gray-100 flex flex-wrap items-center justify-between text-xs bg-amber-50/70 border border-amber-200/60 p-2.5 rounded-xl text-amber-900">
                         <div class="flex items-center space-x-2">
                             <i class="fa-solid fa-circle-info text-amber-600"></i>
                             <span>
-                                Menampilkan hasil filter: <strong><?= number_format($total_data_terfilter) ?> transaksi lunas</strong> ditemukan. 
-                                Total Kas Terfilter: <strong class="text-emerald-700">Rp <?= number_format($total_uang_terfilter, 0, ',', '.') ?></strong>
+                                Hasil Filter: <strong><?= number_format($total_data_terfilter) ?> transaksi lunas</strong> ditemukan. 
+                                Total Kas: <strong class="text-emerald-700 font-extrabold">Rp <?= number_format($total_uang_terfilter, 0, ',', '.') ?></strong>
                             </span>
                         </div>
-                        <a href="laporan_keuangan.php" class="font-bold text-amber-800 hover:text-amber-950 underline text-xs">
+                        <a href="laporan_keuangan.php" class="font-black text-amber-800 hover:text-amber-950 underline text-xs">
                             Bersihkan Filter
                         </a>
                     </div>
@@ -834,23 +970,23 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
             <!-- ======================================================== -->
             <!-- 5. TABEL REKAPITULASI KEUANGAN PSB -->
             <!-- ======================================================== -->
-            <div class="bg-white rounded-3xl border border-gray-200/80 shadow-xs overflow-hidden">
+            <div class="bg-white rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden">
                 
                 <!-- Table Header Bar -->
-                <div class="px-6 py-4.5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-9 h-9 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center text-base">
+                <div class="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center text-sm">
                             <i class="fa-solid fa-list-check"></i>
                         </div>
                         <div>
-                            <h3 class="font-extrabold text-sm sm:text-base text-gray-900">Daftar Transaksi Validasi Pembayaran</h3>
-                            <p class="text-[11px] text-gray-500">Seluruh penerimaan biaya formulir & tes seleksi santri baru</p>
+                            <h3 class="font-extrabold text-xs sm:text-sm text-gray-900">Rincian Transaksi Pembayaran Valid</h3>
+                            <p class="text-[10px] text-gray-400">Daftar calon santri yang biaya seleksinya telah lunas</p>
                         </div>
                     </div>
 
                     <!-- Limit Row Selector -->
                     <div class="flex items-center space-x-2 text-xs text-gray-500 self-end sm:self-auto">
-                        <span>Tampilkan:</span>
+                        <span class="text-[11px] font-bold">Baris:</span>
                         <div class="flex space-x-1">
                             <?php foreach ($limit_options as $lo): ?>
                                 <?php 
@@ -866,20 +1002,20 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                     </div>
                 </div>
 
-                <!-- Table Responsive Container -->
+                <!-- Table Container -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs whitespace-nowrap">
                         <thead>
                             <tr class="text-gray-400 font-bold uppercase tracking-wider text-[10px] border-b border-gray-100 bg-gray-50/60">
-                                <th class="px-5 py-3.5 text-center w-12">No</th>
-                                <th class="px-5 py-3.5">Santri & Registrasi</th>
-                                <th class="px-5 py-3.5">Jenjang / Jalur</th>
-                                <th class="px-5 py-3.5">Gelombang</th>
-                                <th class="px-5 py-3.5 text-center">Saluran Pembayaran</th>
-                                <th class="px-5 py-3.5">Waktu Lunas</th>
-                                <th class="px-5 py-3.5 text-center">Struk / Bukti</th>
-                                <th class="px-5 py-3.5 text-right">Nominal Biaya</th>
-                                <th class="px-5 py-3.5 text-center w-16">Aksi</th>
+                                <th class="px-4 py-3 text-center w-10">No</th>
+                                <th class="px-4 py-3">Santri & Registrasi</th>
+                                <th class="px-4 py-3">Jenjang / Jalur</th>
+                                <th class="px-4 py-3">Gelombang</th>
+                                <th class="px-4 py-3 text-center">Saluran Bayar</th>
+                                <th class="px-4 py-3">Waktu Lunas</th>
+                                <th class="px-4 py-3 text-center">Struk / Bukti</th>
+                                <th class="px-4 py-3 text-right">Nominal Biaya</th>
+                                <th class="px-4 py-3 text-center w-14">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-gray-700">
@@ -893,14 +1029,14 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                                 ?>
                                 <tr class="hover:bg-gray-50/80 transition-colors">
                                     <!-- No -->
-                                    <td class="px-5 py-4 text-center font-bold text-gray-400">
+                                    <td class="px-4 py-3.5 text-center font-bold text-gray-400">
                                         <?= $iter++ ?>
                                     </td>
 
                                     <!-- Santri & Registrasi -->
-                                    <td class="px-5 py-4">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="w-8 h-8 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xs flex-shrink-0">
+                                    <td class="px-4 py-3.5">
+                                        <div class="flex items-center space-x-2.5">
+                                            <div class="w-7 h-7 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center font-black text-xs flex-shrink-0">
                                                 <?= strtoupper(substr($p['nama_santri'], 0, 1)) ?>
                                             </div>
                                             <div class="min-w-0">
@@ -918,26 +1054,26 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                                     </td>
 
                                     <!-- Jenjang / Jalur -->
-                                    <td class="px-5 py-4">
+                                    <td class="px-4 py-3.5">
                                         <?php if (stripos($p['jalur_pendaftaran'], 'SMP') !== false): ?>
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-teal-50 text-teal-800 border border-teal-200/70">
-                                                <i class="fa-solid fa-school text-[9px] mr-1"></i> SMP IT
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black badge-smp-it">
+                                                <i class="fa-solid fa-school text-[8px] mr-1"></i> SMP IT
                                             </span>
                                         <?php elseif (stripos($p['jalur_pendaftaran'], 'SMA') !== false): ?>
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-indigo-50 text-indigo-800 border border-indigo-200/70">
-                                                <i class="fa-solid fa-graduation-cap text-[9px] mr-1"></i> SMA IT
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black badge-sma-it">
+                                                <i class="fa-solid fa-graduation-cap text-[8px] mr-1"></i> SMA IT
                                             </span>
                                         <?php else: ?>
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200/70">
-                                                <i class="fa-solid fa-mosque text-[9px] mr-1"></i> <?= htmlspecialchars($p['jalur_pendaftaran'] ?? 'Reguler') ?>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black badge-ponpes">
+                                                <i class="fa-solid fa-mosque text-[8px] mr-1"></i> <?= htmlspecialchars($p['jalur_pendaftaran'] ?? 'Reguler') ?>
                                             </span>
                                         <?php endif; ?>
                                     </td>
 
                                     <!-- Gelombang -->
-                                    <td class="px-5 py-4 text-gray-600">
+                                    <td class="px-4 py-3.5 text-gray-600">
                                         <?php if (!empty($p['nama_gelombang'])): ?>
-                                            <span class="font-semibold text-gray-800"><?= htmlspecialchars($p['nama_gelombang']) ?></span>
+                                            <span class="font-bold text-gray-800"><?= htmlspecialchars($p['nama_gelombang']) ?></span>
                                             <span class="text-[10px] text-gray-400 block"><?= htmlspecialchars($p['tahun_ajaran'] ?? '') ?></span>
                                         <?php else: ?>
                                             <span class="text-gray-400 italic">-</span>
@@ -945,24 +1081,24 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                                     </td>
 
                                     <!-- Saluran Bayar -->
-                                    <td class="px-5 py-4 text-center">
+                                    <td class="px-4 py-3.5 text-center">
                                         <?php if ($p['metode_pembayaran'] === 'Transfer'): ?>
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-800 border border-blue-200/80 shadow-2xs">
-                                                <i class="fa-solid fa-building-columns text-[9px] mr-1.5 text-blue-600"></i> BSI Transfer
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-black badge-chan-bsi shadow-2xs">
+                                                <i class="fa-solid fa-building-columns text-[8px] mr-1 text-blue-600"></i> BSI Transfer
                                             </span>
                                         <?php elseif ($p['metode_pembayaran'] === 'Tunai/Cash'): ?>
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
-                                                <i class="fa-solid fa-hand-holding-dollar text-[9px] mr-1.5 text-amber-600"></i> Tunai Kasir
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-black badge-chan-tunai shadow-2xs">
+                                                <i class="fa-solid fa-hand-holding-dollar text-[8px] mr-1 text-amber-600"></i> Tunai Kasir
                                             </span>
                                         <?php else: ?>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold badge-chan-manual">
                                                 Panitia
                                             </span>
                                         <?php endif; ?>
                                     </td>
 
                                     <!-- Tanggal Lunas -->
-                                    <td class="px-5 py-4 text-gray-600">
+                                    <td class="px-4 py-3.5 text-gray-600">
                                         <?php if (!empty($p['tgl_lunas'])): ?>
                                             <div class="font-bold text-gray-800"><?= date('d M Y', strtotime($p['tgl_lunas'])) ?></div>
                                             <div class="text-[10px] text-gray-400 font-mono"><?= date('H:i', strtotime($p['tgl_lunas'])) ?> WIB</div>
@@ -972,7 +1108,7 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                                     </td>
 
                                     <!-- Bukti Struk -->
-                                    <td class="px-5 py-4 text-center">
+                                    <td class="px-4 py-3.5 text-center">
                                         <?php if ($has_bukti): ?>
                                             <button type="button" onclick="openStrukModal('<?= htmlspecialchars($bukti_url, ENT_QUOTES) ?>', '<?= htmlspecialchars($p['no_registrasi'], ENT_QUOTES) ?>', '<?= htmlspecialchars($p['nama_santri'], ENT_QUOTES) ?>', '<?= number_format($nominal, 0, ',', '.') ?>', '<?= $p['tgl_lunas'] ? date('d M Y, H:i', strtotime($p['tgl_lunas'])) : '-' ?>', '<?= htmlspecialchars($p['metode_pembayaran'], ENT_QUOTES) ?>')" class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-700 transition group shadow-2xs" title="Pratinjau Foto Struk Pembayaran">
                                                 <i class="fa-regular fa-image text-brand-primary group-hover:text-white transition"></i>
@@ -984,32 +1120,32 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                                     </td>
 
                                     <!-- Nominal Biaya -->
-                                    <td class="px-5 py-4 text-right">
-                                        <span class="text-sm font-black text-emerald-700">
+                                    <td class="px-4 py-3.5 text-right">
+                                        <span class="text-xs sm:text-sm font-black text-emerald-700">
                                             Rp <?= number_format($nominal, 0, ',', '.') ?>
                                         </span>
                                     </td>
 
                                     <!-- Aksi -->
-                                    <td class="px-5 py-4 text-center">
-                                        <a href="detail_pendaftar.php?id=<?= $p['id'] ?>" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-500 inline-flex items-center justify-center transition shadow-2xs" title="Buka Detail Santri">
-                                            <i class="fa-solid fa-arrow-right text-xs"></i>
+                                    <td class="px-4 py-3.5 text-center">
+                                        <a href="detail_pendaftar.php?id=<?= $p['id'] ?>" class="w-6 h-6 rounded-md bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-500 inline-flex items-center justify-center transition shadow-2xs" title="Buka Detail Santri">
+                                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
                                         </a>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="9" class="py-16 text-center text-gray-400">
-                                        <div class="w-16 h-16 rounded-3xl bg-gray-100 text-gray-300 flex items-center justify-center text-3xl mx-auto mb-3">
+                                    <td colspan="9" class="py-12 text-center text-gray-400">
+                                        <div class="w-12 h-12 rounded-2xl bg-gray-100 text-gray-300 flex items-center justify-center text-2xl mx-auto mb-2">
                                             <i class="fa-solid fa-receipt"></i>
                                         </div>
-                                        <h4 class="text-base font-bold text-gray-700 mb-1">Tidak Ada Data Pembayaran</h4>
+                                        <h4 class="text-sm font-bold text-gray-700 mb-0.5">Tidak Ada Data Pembayaran</h4>
                                         <p class="text-xs text-gray-500 max-w-sm mx-auto">
-                                            Tidak ditemukan data transaksi lunas sesuai dengan kata kunci atau filter yang Anda terapkan.
+                                            Tidak ditemukan data transaksi lunas sesuai filter yang Anda terapkan.
                                         </p>
                                         <?php if ($has_active_filter): ?>
-                                            <a href="laporan_keuangan.php" class="inline-flex items-center space-x-1.5 mt-4 px-4 py-2 bg-brand-primary text-white rounded-xl text-xs font-bold shadow-xs hover:bg-brand-deep transition">
+                                            <a href="laporan_keuangan.php" class="inline-flex items-center space-x-1 mt-3 px-3 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-bold shadow-xs hover:bg-brand-deep transition">
                                                 <i class="fa-solid fa-arrow-rotate-left"></i>
                                                 <span>Reset Filter</span>
                                             </a>
@@ -1023,19 +1159,19 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                         <?php if (count($pendaftar_lunas) > 0): ?>
                         <tfoot class="border-t-2 border-gray-200 bg-gray-50/80 font-bold text-xs text-gray-800">
                             <tr>
-                                <td colspan="7" class="px-5 py-3 text-right uppercase tracking-wider text-[11px] text-gray-500">
+                                <td colspan="7" class="px-4 py-2.5 text-right uppercase tracking-wider text-[10px] text-gray-500">
                                     Subtotal Halaman Ini (<?= count($pendaftar_lunas) ?> Data):
                                 </td>
-                                <td class="px-5 py-3 text-right font-black text-gray-900 text-sm">
+                                <td class="px-4 py-2.5 text-right font-black text-gray-900 text-xs sm:text-sm">
                                     Rp <?= number_format($subtotal_halaman, 0, ',', '.') ?>
                                 </td>
                                 <td></td>
                             </tr>
                             <tr class="bg-brand-primary/5 text-brand-primary border-t border-brand-primary/10">
-                                <td colspan="7" class="px-5 py-3.5 text-right uppercase tracking-wider text-[11px] font-black">
+                                <td colspan="7" class="px-4 py-3 text-right uppercase tracking-wider text-[11px] font-black">
                                     Grand Total Sesuai Filter (<?= number_format($total_data_terfilter) ?> Transaksi):
                                 </td>
-                                <td class="px-5 py-3.5 text-right font-black text-base text-emerald-800">
+                                <td class="px-4 py-3 text-right font-black text-sm sm:text-base text-emerald-800">
                                     Rp <?= number_format($total_uang_terfilter, 0, ',', '.') ?>
                                 </td>
                                 <td></td>
@@ -1047,7 +1183,7 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                 </div>
 
                 <!-- Pagination & Record Summary -->
-                <div class="border-t border-gray-100 bg-gray-50/50 p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="border-t border-gray-100 bg-gray-50/50 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div class="text-xs text-gray-500 font-medium">
                         Menampilkan <span class="font-extrabold text-gray-800"><?= $total_data_terfilter > 0 ? ($offset + 1) : 0 ?></span> s/d <span class="font-extrabold text-gray-800"><?= min($offset + $limit, $total_data_terfilter) ?></span> dari total <span class="font-extrabold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md"><?= number_format($total_data_terfilter) ?></span> transaksi valid
                     </div>
@@ -1060,12 +1196,12 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                             $prev_params = $_GET;
                             $prev_params['page'] = $page - 1;
                             ?>
-                            <a href="?<?= http_build_query($prev_params) ?>" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-2xs" title="Halaman Sebelumnya">
-                                <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                            <a href="?<?= http_build_query($prev_params) ?>" class="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-2xs" title="Halaman Sebelumnya">
+                                <i class="fa-solid fa-chevron-left text-[9px]"></i>
                             </a>
                         <?php else: ?>
-                            <span class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-50 border border-gray-200 text-gray-300 cursor-not-allowed">
-                                <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                            <span class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-50 border border-gray-200 text-gray-300 cursor-not-allowed">
+                                <i class="fa-solid fa-chevron-left text-[9px]"></i>
                             </span>
                         <?php endif; ?>
 
@@ -1078,9 +1214,9 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                             if ($start_page > 1) {
                                 $p1_params = $_GET;
                                 $p1_params['page'] = 1;
-                                echo '<a href="?' . http_build_query($p1_params) . '" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 transition shadow-2xs">1</a>';
+                                echo '<a href="?' . http_build_query($p1_params) . '" class="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 transition shadow-2xs">1</a>';
                                 if ($start_page > 2) {
-                                    echo '<span class="w-8 h-8 flex items-center justify-center text-gray-400 font-bold">...</span>';
+                                    echo '<span class="w-7 h-7 flex items-center justify-center text-gray-400 font-bold">...</span>';
                                 }
                             }
 
@@ -1089,20 +1225,20 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                                 $pi_params['page'] = $i;
                             ?>
                                 <?php if ($i == $page): ?>
-                                    <span class="w-8 h-8 flex items-center justify-center rounded-xl bg-brand-primary border border-brand-primary font-black text-white shadow-xs"><?= $i ?></span>
+                                    <span class="w-7 h-7 flex items-center justify-center rounded-lg bg-brand-primary border border-brand-primary font-black text-white shadow-xs"><?= $i ?></span>
                                 <?php else: ?>
-                                    <a href="?<?= http_build_query($pi_params) ?>" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 transition shadow-2xs"><?= $i ?></a>
+                                    <a href="?<?= http_build_query($pi_params) ?>" class="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 transition shadow-2xs"><?= $i ?></a>
                                 <?php endif; ?>
                             <?php endfor; ?>
 
                             <?php
                             if ($end_page < $total_pages) {
                                 if ($end_page < $total_pages - 1) {
-                                    echo '<span class="w-8 h-8 flex items-center justify-center text-gray-400 font-bold">...</span>';
+                                    echo '<span class="w-7 h-7 flex items-center justify-center text-gray-400 font-bold">...</span>';
                                 }
                                 $last_params = $_GET;
                                 $last_params['page'] = $total_pages;
-                                echo '<a href="?' . http_build_query($last_params) . '" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 transition shadow-2xs">' . $total_pages . '</a>';
+                                echo '<a href="?' . http_build_query($last_params) . '" class="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 transition shadow-2xs">' . $total_pages . '</a>';
                             }
                             ?>
                         </div>
@@ -1113,12 +1249,12 @@ $export_url_query = http_build_query(array_merge($current_filter_params, ['expor
                             $next_params = $_GET;
                             $next_params['page'] = $page + 1;
                             ?>
-                            <a href="?<?= http_build_query($next_params) ?>" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-2xs" title="Halaman Selanjutnya">
-                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                            <a href="?<?= http_build_query($next_params) ?>" class="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-2xs" title="Halaman Selanjutnya">
+                                <i class="fa-solid fa-chevron-right text-[9px]"></i>
                             </a>
                         <?php else: ?>
-                            <span class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-50 border border-gray-200 text-gray-300 cursor-not-allowed">
-                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                            <span class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-50 border border-gray-200 text-gray-300 cursor-not-allowed">
+                                <i class="fa-solid fa-chevron-right text-[9px]"></i>
                             </span>
                         <?php endif; ?>
                     </nav>
