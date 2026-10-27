@@ -147,19 +147,25 @@ include 'includes/head.php';
 
         <?php
         $header_custom_title = '
-            <a href="pendaftar.php" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition text-primary mr-4" title="Kembali ke Daftar Pendaftar">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <div>
-                <h1 class="text-xl font-extrabold text-primary flex items-center">
-                    <i class="fa-solid fa-user-pen text-secondary mr-2.5"></i> Edit Data Lengkap Pendaftar
-                </h1>
-                <p class="text-xs text-gray-500 font-medium mt-0.5 hidden sm:block">Koreksi kesalahan input data santri, orang tua, dan sekolah asal</p>
+            <div class="flex items-center space-x-3 min-w-0">
+                <a href="pendaftar.php" class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-[#5C3E35] text-gray-600 hover:text-white flex items-center justify-center transition flex-shrink-0 shadow-2xs group" title="Kembali ke Data Pendaftar">
+                    <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
+                </a>
+                <div class="min-w-0">
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-sm sm:text-base lg:text-lg font-black text-[#2F2522] tracking-tight truncate flex items-center">
+                            <i class="fa-solid fa-user-pen mr-2 text-[#5C3E35]"></i> Edit Data Santri
+                        </h1>
+                        <span class="hidden sm:inline-block bg-stone-100 text-[#5C3E35] border border-stone-200/80 px-2 py-0.5 rounded-lg text-xs font-mono font-bold whitespace-nowrap">
+                            #' . htmlspecialchars($santri['no_registrasi']) . '
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 font-medium hidden md:block truncate">
+                        Koreksi kesalahan input data santri, orang tua, dan sekolah asal
+                    </p>
+                </div>
             </div>';
-        $header_custom_right = '
-            <span class="bg-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-extrabold border border-primary/20">
-                <i class="fa-solid fa-hashtag mr-1"></i> No. Reg: ' . htmlspecialchars($santri['no_registrasi']) . '
-            </span>';
+
         include 'includes/header.php';
         ?>
 

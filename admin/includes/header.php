@@ -58,17 +58,17 @@ if (!function_exists('get_menu_class_mobile')) {
 $admin_role = $_SESSION['admin_role'] ?? 'panitia';
 ?>
 <!-- Modern Sticky Navbar Header -->
-<header class="h-20 bg-white border-b border-gray-200/90 flex items-center justify-between px-4 sm:px-8 z-30 flex-shrink-0 sticky top-0 shadow-sm transition-all">
+<header class="h-20 bg-white border-b border-gray-200/90 flex items-center justify-between px-4 sm:px-6 lg:px-8 z-30 flex-shrink-0 sticky top-0 shadow-2xs transition-all">
     
     <!-- Left: Mobile Trigger & Page Title -->
-    <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
+    <div class="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0 mr-3 sm:mr-6">
         <!-- Hamburger Button (Mobile Only) -->
         <button type="button" class="lg:hidden w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors focus:outline-none flex-shrink-0" onclick="document.getElementById('mobile-sidebar').classList.remove('hidden')">
             <i class="fa-solid fa-bars-staggered text-lg"></i>
         </button>
 
         <?php if (!empty($header_custom_title)): ?>
-            <div class="flex items-center min-w-0">
+            <div class="flex items-center min-w-0 flex-1">
                 <?= $header_custom_title ?>
             </div>
         <?php else: ?>
@@ -84,39 +84,35 @@ $admin_role = $_SESSION['admin_role'] ?? 'panitia';
     </div>
     
     <!-- Right: Status Badge, Quick Links, & Profile -->
-    <div class="flex items-center space-x-2.5 sm:space-x-4 flex-shrink-0">
-        <?php if (!empty($header_custom_right)): ?>
-            <?= $header_custom_right ?>
-        <?php endif; ?>
-        
-        <!-- Live System Status Badge (Desktop) -->
-        <div class="hidden xl:flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-3 py-1.5 rounded-full text-xs font-bold">
+    <div class="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+        <!-- Live System Status Badge (Hanya tampil di layar 2XL agar tidak menghimpit judul di layar laptop) -->
+        <div class="hidden 2xl:flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span>PSB T.A 2026/2027 Online</span>
         </div>
 
-        <!-- Date Pill -->
-        <div class="hidden sm:flex items-center space-x-2 bg-gray-50 text-gray-600 border border-gray-200/70 px-3.5 py-1.5 rounded-xl text-xs font-semibold">
+        <!-- Date Pill (Tampil di layar XL+) -->
+        <div class="hidden xl:flex items-center space-x-2 bg-gray-50 text-gray-600 border border-gray-200/70 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap">
             <i class="fa-regular fa-calendar text-brand-primary"></i>
             <span><?= function_exists('format_tanggal') ? format_tanggal(date('Y-m-d')) : date('d M Y') ?></span>
         </div>
 
         <!-- Shortcut: Buka Portal Web Publik -->
-        <a href="../index.php" target="_blank" class="inline-flex items-center space-x-1.5 bg-brand-primary hover:bg-brand-deep text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 shadow-sm" title="Lihat Tampilan Website Publik">
+        <a href="../index.php" target="_blank" class="inline-flex items-center space-x-1.5 bg-brand-primary hover:bg-brand-deep text-white px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs whitespace-nowrap" title="Lihat Tampilan Website Publik">
             <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
             <span class="hidden md:inline">Lihat Web</span>
         </a>
 
         <!-- User Profile Pill -->
         <div class="flex items-center space-x-2.5 pl-2 sm:pl-3 border-l border-gray-200">
-            <div class="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center text-white font-black text-xs shadow-sm border border-brand-secondary/40">
+            <div class="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center text-white font-black text-xs shadow-xs border border-brand-secondary/40 flex-shrink-0">
                 <?= htmlspecialchars(strtoupper(substr($_SESSION['admin_nama'] ?? 'AD', 0, 2))) ?>
             </div>
-            <div class="hidden md:block text-left">
-                <span class="block text-xs font-bold text-gray-800 leading-tight">
+            <div class="hidden lg:block text-left max-w-[130px]">
+                <span class="block text-xs font-bold text-gray-800 leading-tight truncate">
                     <?= htmlspecialchars($_SESSION['admin_nama'] ?? 'Admin') ?>
                 </span>
-                <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+                <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider truncate">
                     <?= htmlspecialchars($admin_role) ?>
                 </span>
             </div>

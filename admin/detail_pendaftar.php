@@ -175,29 +175,23 @@ include 'includes/head.php';
 
         <?php
         $header_custom_title = '
-            <a href="pendaftar.php" class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl transition text-[#5C3E35] mr-3 inline-flex items-center justify-center shadow-xs" title="Kembali ke Daftar Pendaftar">
-                <i class="fa-solid fa-arrow-left text-sm"></i>
-            </a>
-            <div>
-                <div class="flex items-center space-x-2">
-                    <h1 class="text-xl font-extrabold text-[#2F2522]">Detail Profil Calon Santri</h1>
-                    <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[11px] font-mono font-bold">' . htmlspecialchars($santri['no_registrasi']) . '</span>
-                </div>
-                <p class="text-xs text-gray-500 font-medium mt-0.5 hidden sm:block">Informasi lengkap biodata, orang tua, pembayaran, dan hasil seleksi</p>
-            </div>';
-
-        $header_custom_right = '
-            <div class="flex items-center space-x-2">
-                ' . (in_array($admin_role, ['superadmin', 'panitia']) ? '
-                <a href="edit_pendaftar.php?id=' . $santri['id'] . '" class="inline-flex items-center space-x-1.5 bg-brand-primary hover:bg-brand-deep text-white px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-sm">
-                    <i class="fa-solid fa-user-pen text-xs"></i>
-                    <span>Edit Biodata</span>
-                </a>' : '') . '
-                
-                <a href="pendaftar.php" class="inline-flex items-center space-x-1.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs">
-                    <i class="fa-solid fa-table-list text-xs text-gray-500"></i>
-                    <span>Daftar Pendaftar</span>
+            <div class="flex items-center space-x-3 min-w-0">
+                <a href="pendaftar.php" class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-[#5C3E35] text-gray-600 hover:text-white flex items-center justify-center transition flex-shrink-0 shadow-2xs group" title="Kembali ke Data Pendaftar">
+                    <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
                 </a>
+                <div class="min-w-0">
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-sm sm:text-base lg:text-lg font-black text-[#2F2522] tracking-tight truncate">
+                            Detail Profil Calon Santri
+                        </h1>
+                        <span class="hidden sm:inline-block bg-stone-100 text-[#5C3E35] border border-stone-200/80 px-2 py-0.5 rounded-lg text-xs font-mono font-bold whitespace-nowrap">
+                            #' . htmlspecialchars($santri['no_registrasi']) . '
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 font-medium hidden md:block truncate">
+                        Informasi lengkap biodata, orang tua, pembayaran, dan hasil seleksi
+                    </p>
+                </div>
             </div>';
 
         include 'includes/header.php';
@@ -206,21 +200,29 @@ include 'includes/head.php';
         <!-- Scrollable Body -->
         <main class="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto space-y-6">
 
-            <!-- Breadcrumb Navigation & Prominent Back Action Bar -->
+            <!-- Breadcrumb Navigation & Action Bar -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:px-5 rounded-2xl border border-gray-200/90 shadow-2xs">
-                <nav class="flex items-center space-x-2 text-xs font-semibold text-gray-500">
-                    <a href="dashboard.php" class="hover:text-brand-primary transition flex items-center">
+                <nav class="flex items-center space-x-2 text-xs font-semibold text-gray-500 min-w-0 overflow-hidden">
+                    <a href="dashboard.php" class="hover:text-brand-primary transition flex items-center flex-shrink-0">
                         <i class="fa-solid fa-house text-gray-400 mr-1.5 text-[11px]"></i> Dashboard
                     </a>
                     <span class="text-gray-300">/</span>
-                    <a href="pendaftar.php" class="hover:text-brand-primary transition">Data Pendaftar</a>
+                    <a href="pendaftar.php" class="hover:text-brand-primary transition flex-shrink-0">Data Pendaftar</a>
                     <span class="text-gray-300">/</span>
-                    <span class="text-[#5C3E35] font-black">Detail #<?= htmlspecialchars($santri['no_registrasi']) ?></span>
+                    <span class="text-[#5C3E35] font-black truncate">Detail #<?= htmlspecialchars($santri['no_registrasi']) ?></span>
                 </nav>
-                <a href="pendaftar.php" class="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#5C3E35]/10 hover:bg-[#5C3E35] text-[#5C3E35] hover:text-white transition shadow-2xs group w-fit border border-[#5C3E35]/20" title="Kembali ke Tabel Data Pendaftar">
-                    <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
-                    <span>&larr; Kembali ke Data Pendaftar</span>
-                </a>
+                <div class="flex items-center space-x-2.5 flex-shrink-0">
+                    <?php if (in_array($admin_role, ['superadmin', 'panitia'])): ?>
+                        <a href="edit_pendaftar.php?id=<?= $santri['id'] ?>" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#5C3E35] hover:bg-[#4A3029] text-white shadow-2xs transition">
+                            <i class="fa-solid fa-user-pen text-xs"></i>
+                            <span>Edit Biodata</span>
+                        </a>
+                    <?php endif; ?>
+                    <a href="pendaftar.php" class="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-stone-100 hover:bg-[#5C3E35] text-stone-700 hover:text-white transition shadow-2xs group border border-stone-200" title="Kembali ke Tabel Data Pendaftar">
+                        <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
+                        <span>Kembali ke Data Pendaftar</span>
+                    </a>
+                </div>
             </div>
 
             <!-- Alert Notifikasi -->

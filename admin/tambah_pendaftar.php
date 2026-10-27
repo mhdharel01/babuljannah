@@ -221,24 +221,18 @@ include 'includes/head.php';
         
         <?php
         $header_custom_title = '
-            <div class="flex items-center min-w-0">
-                <a href="pendaftar.php" class="p-2 sm:p-2.5 bg-gray-100 hover:bg-[#5C3E35] text-gray-700 hover:text-white rounded-xl transition mr-3 inline-flex items-center justify-center shadow-xs flex-shrink-0 group" title="Kembali ke Data Pendaftar">
-                    <i class="fa-solid fa-arrow-left text-sm group-hover:-translate-x-0.5 transition-transform"></i>
+            <div class="flex items-center space-x-3 min-w-0">
+                <a href="pendaftar.php" class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-[#5C3E35] text-gray-600 hover:text-white flex items-center justify-center transition flex-shrink-0 shadow-2xs group" title="Kembali ke Data Pendaftar">
+                    <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
                 </a>
                 <div class="min-w-0">
-                    <h1 class="text-base sm:text-xl font-extrabold text-[#2F2522] tracking-tight flex items-center truncate">
+                    <h1 class="text-sm sm:text-base lg:text-lg font-black text-[#2F2522] tracking-tight truncate flex items-center">
                         <i class="fa-solid fa-user-plus mr-2 text-[#5C3E35]"></i> Input Santri Baru Manual
                     </h1>
-                    <p class="text-[11px] text-gray-500 font-medium hidden sm:block truncate">Formulir pendaftaran manual oleh panitia dengan bypass status pembayaran & kelulusan</p>
+                    <p class="text-[11px] text-gray-500 font-medium hidden md:block truncate">
+                        Formulir pendaftaran manual oleh panitia dengan bypass status pembayaran & kelulusan
+                    </p>
                 </div>
-            </div>';
-
-        $header_custom_right = '
-            <div class="flex items-center space-x-2">
-                <a href="pendaftar.php" class="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-gray-700 hover:text-[#5C3E35] border border-gray-300 hover:border-[#5C3E35] transition shadow-xs">
-                    <i class="fa-solid fa-table-list text-gray-400"></i>
-                    <span class="hidden sm:inline">Data Pendaftar</span>
-                </a>
             </div>';
 
         include 'includes/header.php';
