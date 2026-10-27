@@ -61,24 +61,33 @@ $admin_role = $_SESSION['admin_role'] ?? 'panitia';
 <header class="h-20 bg-white border-b border-gray-200/90 flex items-center justify-between px-4 sm:px-8 z-30 flex-shrink-0 sticky top-0 shadow-sm transition-all">
     
     <!-- Left: Mobile Trigger & Page Title -->
-    <div class="flex items-center space-x-4 min-w-0">
+    <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
         <!-- Hamburger Button (Mobile Only) -->
-        <button type="button" class="lg:hidden w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors focus:outline-none" onclick="document.getElementById('mobile-sidebar').classList.remove('hidden')">
+        <button type="button" class="lg:hidden w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors focus:outline-none flex-shrink-0" onclick="document.getElementById('mobile-sidebar').classList.remove('hidden')">
             <i class="fa-solid fa-bars-staggered text-lg"></i>
         </button>
 
-        <div class="min-w-0">
-            <h1 class="text-base sm:text-lg lg:text-xl font-extrabold text-[#2F2522] tracking-tight truncate flex items-center">
-                <?= htmlspecialchars($page_title) ?>
-            </h1>
-            <p class="text-[11px] text-gray-500 font-medium hidden sm:block truncate">
-                <?= htmlspecialchars($page_subtitle) ?>
-            </p>
-        </div>
+        <?php if (!empty($header_custom_title)): ?>
+            <div class="flex items-center min-w-0">
+                <?= $header_custom_title ?>
+            </div>
+        <?php else: ?>
+            <div class="min-w-0">
+                <h1 class="text-base sm:text-lg lg:text-xl font-extrabold text-[#2F2522] tracking-tight truncate flex items-center">
+                    <?= htmlspecialchars($page_title) ?>
+                </h1>
+                <p class="text-[11px] text-gray-500 font-medium hidden sm:block truncate">
+                    <?= htmlspecialchars($page_subtitle) ?>
+                </p>
+            </div>
+        <?php endif; ?>
     </div>
     
     <!-- Right: Status Badge, Quick Links, & Profile -->
     <div class="flex items-center space-x-2.5 sm:space-x-4 flex-shrink-0">
+        <?php if (!empty($header_custom_right)): ?>
+            <?= $header_custom_right ?>
+        <?php endif; ?>
         
         <!-- Live System Status Badge (Desktop) -->
         <div class="hidden xl:flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-3 py-1.5 rounded-full text-xs font-bold">

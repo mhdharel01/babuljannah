@@ -206,6 +206,23 @@ include 'includes/head.php';
         <!-- Scrollable Body -->
         <main class="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto space-y-6">
 
+            <!-- Breadcrumb Navigation & Prominent Back Action Bar -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:px-5 rounded-2xl border border-gray-200/90 shadow-2xs">
+                <nav class="flex items-center space-x-2 text-xs font-semibold text-gray-500">
+                    <a href="dashboard.php" class="hover:text-brand-primary transition flex items-center">
+                        <i class="fa-solid fa-house text-gray-400 mr-1.5 text-[11px]"></i> Dashboard
+                    </a>
+                    <span class="text-gray-300">/</span>
+                    <a href="pendaftar.php" class="hover:text-brand-primary transition">Data Pendaftar</a>
+                    <span class="text-gray-300">/</span>
+                    <span class="text-[#5C3E35] font-black">Detail #<?= htmlspecialchars($santri['no_registrasi']) ?></span>
+                </nav>
+                <a href="pendaftar.php" class="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#5C3E35]/10 hover:bg-[#5C3E35] text-[#5C3E35] hover:text-white transition shadow-2xs group w-fit border border-[#5C3E35]/20" title="Kembali ke Tabel Data Pendaftar">
+                    <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
+                    <span>&larr; Kembali ke Data Pendaftar</span>
+                </a>
+            </div>
+
             <!-- Alert Notifikasi -->
             <?php if (!empty($success)): ?>
                 <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-xl flex items-center justify-between shadow-xs">
@@ -723,6 +740,31 @@ include 'includes/head.php';
 
                 </div>
 
+            </div>
+
+            <!-- Bottom Action & Navigation Bar -->
+            <div class="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200/90 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <a href="pendaftar.php" class="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-black bg-[#5C3E35] hover:bg-[#4A3029] text-white transition shadow-sm group">
+                        <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-1 transition-transform"></i>
+                        <span>Kembali ke Data Pendaftar</span>
+                    </a>
+                    <a href="dashboard.php" class="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-[#5C3E35] hover:bg-gray-100 transition">
+                        <i class="fa-solid fa-house text-gray-400"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                    <?php if (in_array($admin_role, ['superadmin', 'panitia'])): ?>
+                        <a href="edit_pendaftar.php?id=<?= $santri['id'] ?>" class="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#A17A6F] hover:bg-[#8F695E] text-white shadow-xs transition">
+                            <i class="fa-solid fa-user-pen text-xs"></i>
+                            <span>Edit Data Santri</span>
+                        </a>
+                    <?php endif; ?>
+                    <button type="button" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="p-2.5 rounded-xl text-gray-500 hover:text-[#5C3E35] bg-gray-100 hover:bg-gray-200 text-xs font-bold transition" title="Kembali ke atas">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
+                </div>
             </div>
 
         </main>
