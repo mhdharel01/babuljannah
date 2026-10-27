@@ -1,14 +1,14 @@
 <?php
 // admin/gelombang.php
-require_once '../config/db.php';
+require_once __DIR__ . '/../config/db.php';
 
-// Proteksi// Cek login
+// Proteksi Autentikasi Admin
 if (!isset($_SESSION['admin_logged']) || $_SESSION['admin_logged'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// RBAC
+// RBAC: superadmin dan panitia
 $admin_role = $_SESSION['admin_role'] ?? 'panitia';
 if (!in_array($admin_role, ['superadmin', 'panitia'])) {
     die("Akses Ditolak. Anda tidak memiliki izin ke halaman ini.");
@@ -18,7 +18,7 @@ $error = '';
 $success = '';
 
 // 1. Tangani Aksi Simpan Gelombang Baru
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_gelombang') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_gelombang') {
     $nama_gelombang = sanitize($_POST['nama_gelombang'] ?? '');
     $tahun_ajaran = sanitize($_POST['tahun_ajaran'] ?? '');
     $tgl_buka = sanitize($_POST['tgl_buka'] ?? '');
@@ -29,27 +29,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $status = sanitize($_POST['status'] ?? 'nonaktif');
     
     if (!empty($nama_gelombang) && !empty($tahun_ajaran) && !empty($tgl_buka) && !empty($tgl_tutup) && !empty($tgl_ujian) && !empty($tgl_pengumuman)) {
-        try {
-            // Jika gelombang baru diset aktif, biarkan gelombang lain tetap ada (tidak perlu auto-nonaktif)
-            
-            $stmt = $db->prepare("INSERT INTO gelombang (nama_gelombang, tahun_ajaran, tgl_buka, tgl_tutup, tgl_ujian, tgl_pengumuman, jenjang_dibuka, status) VALUES (:nama, :ta, :buka, :tutup, :ujian, :pengumuman, :jenjang, :status)");
-            $stmt->execute([
-                'nama' => $nama_gelombang,
-                'ta' => $tahun_ajaran,
-                'buka' => $tgl_buka,
-                'tutup' => $tgl_tutup,
-                'ujian' => $tgl_ujian,
-                'pengumuman' => $tgl_pengumuman,
-                'jenjang' => $jenjang_dibuka,
-                'status' => $status
-            ]);
-            
-            $success = "Gelombang pendaftaran baru berhasil ditambahkan.";
-        } catch (PDOException $e) {
-            $error = "Gagal menyimpan gelombang: " . $e->getMessage();
+        if ($tgl_tutup < $tgl_buka) {
+            $error = "Tanggal tutup pendaftaran tidak boleh lebih awal dari tanggal buka.";
+        } else {
+            try {
+                $stmt = $db->prepare("INSERT INTO gelombang (nama_gelombang, tahun_ajaran, tgl_buka, tgl_tutup, tgl_ujian, tgl_pengumuman, jenjang_dibuka, status) VALUES (:nama, :ta, :buka, :tutup, :ujian, :pengumuman, :jenjang, :status)");
+                $stmt->execute([
+                    'nama' => $nama_gelombang,
+                    'ta' => $tahun_ajaran,
+                    'buka' => $tgl_buka,
+                    'tutup' => $tgl_tutup,
+                    'ujian' => $tgl_ujian,
+                    'pengumuman' => $tgl_pengumuman,
+                    'jenjang' => $jenjang_dibuka,
+                    'status' => $status
+                ]);
+                
+                $success = "Gelombang pendaftaran baru '{$nama_gelombang}' berhasil ditambahkan!";
+            } catch (PDOException $e) {
+                $error = "Gagal menyimpan gelombang: " . $e->getMessage();
+            }
         }
     } else {
-        $error = "Silakan lengkapi semua field formulir.";
+        $error = "Silakan lengkapi semua field formulir gelombang pendaftaran.";
     }
 }
 
@@ -63,12 +65,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'toggle_status') {
             if ($current_status === 'aktif') {
                 $stmt = $db->prepare("UPDATE gelombang SET status = 'nonaktif' WHERE id = :id");
                 $stmt->execute(['id' => $id]);
-                $success = "Gelombang berhasil dinonaktifkan.";
+                $success = "Status gelombang berhasil dinonaktifkan (disembunyikan dari portal publik).";
             } else {
-                // Aktifkan gelombang ini tanpa mematikan yang lain
                 $stmt = $db->prepare("UPDATE gelombang SET status = 'aktif' WHERE id = :id");
                 $stmt->execute(['id' => $id]);
-                $success = "Gelombang berhasil diaktifkan dan akan ditampilkan di jadwal publik.";
+                $success = "Status gelombang berhasil diaktifkan dan akan tampil di jadwal publik portal PSB.";
             }
         } catch (PDOException $e) {
             $error = "Gagal mengubah status gelombang: " . $e->getMessage();
@@ -81,17 +82,26 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete') {
     $id = (int)($_GET['id'] ?? 0);
     if ($id > 0) {
         try {
-            $stmt = $db->prepare("DELETE FROM gelombang WHERE id = :id");
-            $stmt->execute(['id' => $id]);
-            $success = "Gelombang pendaftaran berhasil dihapus.";
+            // Cek apakah sudah ada santri yang mendaftar di gelombang ini
+            $check_stmt = $db->prepare("SELECT COUNT(*) FROM pendaftaran WHERE gelombang_id = :id");
+            $check_stmt->execute(['id' => $id]);
+            $total_p = (int)$check_stmt->fetchColumn();
+
+            if ($total_p > 0) {
+                $error = "Gelombang ini tidak dapat dihapus karena sudah memiliki <strong>{$total_p} santri terdaftar</strong>. Demi keamanan data, silakan ubah statusnya menjadi <em>Nonaktif</em> saja.";
+            } else {
+                $stmt = $db->prepare("DELETE FROM gelombang WHERE id = :id");
+                $stmt->execute(['id' => $id]);
+                $success = "Gelombang pendaftaran berhasil dihapus dari sistem.";
+            }
         } catch (PDOException $e) {
-            $error = "Gagal menghapus gelombang (mungkin gelombang ini sudah memiliki data pendaftar): " . $e->getMessage();
+            $error = "Gagal menghapus gelombang: " . $e->getMessage();
         }
     }
 }
 
 // 4. Tangani Aksi Edit Gelombang
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_gelombang') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_gelombang') {
     $id = (int)($_POST['id'] ?? 0);
     $nama_gelombang = sanitize($_POST['nama_gelombang'] ?? '');
     $tahun_ajaran = sanitize($_POST['tahun_ajaran'] ?? '');
@@ -103,27 +113,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $status = sanitize($_POST['status'] ?? 'nonaktif');
     
     if ($id > 0 && !empty($nama_gelombang) && !empty($tahun_ajaran) && !empty($tgl_buka) && !empty($tgl_tutup) && !empty($tgl_ujian) && !empty($tgl_pengumuman)) {
-        try {
-            // Tidak auto-nonaktifkan yang lain saat edit agar multiple gelombang bisa tampil di publik
-            
-            $stmt = $db->prepare("UPDATE gelombang SET nama_gelombang = :nama, tahun_ajaran = :ta, tgl_buka = :buka, tgl_tutup = :tutup, tgl_ujian = :ujian, tgl_pengumuman = :pengumuman, jenjang_dibuka = :jenjang, status = :status WHERE id = :id");
-            $stmt->execute([
-                'nama' => $nama_gelombang,
-                'ta' => $tahun_ajaran,
-                'buka' => $tgl_buka,
-                'tutup' => $tgl_tutup,
-                'ujian' => $tgl_ujian,
-                'pengumuman' => $tgl_pengumuman,
-                'jenjang' => $jenjang_dibuka,
-                'status' => $status,
-                'id' => $id
-            ]);
-            
-            $success = "Data dan jadwal gelombang berhasil diperbarui.";
-            header("Location: gelombang.php?success=" . urlencode($success));
-            exit();
-        } catch (PDOException $e) {
-            $error = "Gagal memperbarui gelombang: " . $e->getMessage();
+        if ($tgl_tutup < $tgl_buka) {
+            $error = "Tanggal tutup pendaftaran tidak boleh lebih awal dari tanggal buka.";
+        } else {
+            try {
+                $stmt = $db->prepare("UPDATE gelombang SET nama_gelombang = :nama, tahun_ajaran = :ta, tgl_buka = :buka, tgl_tutup = :tutup, tgl_ujian = :ujian, tgl_pengumuman = :pengumuman, jenjang_dibuka = :jenjang, status = :status WHERE id = :id");
+                $stmt->execute([
+                    'nama' => $nama_gelombang,
+                    'ta' => $tahun_ajaran,
+                    'buka' => $tgl_buka,
+                    'tutup' => $tgl_tutup,
+                    'ujian' => $tgl_ujian,
+                    'pengumuman' => $tgl_pengumuman,
+                    'jenjang' => $jenjang_dibuka,
+                    'status' => $status,
+                    'id' => $id
+                ]);
+                
+                $success = "Data dan jadwal gelombang '{$nama_gelombang}' berhasil diperbarui.";
+                header("Location: gelombang.php?success=" . urlencode($success));
+                exit();
+            } catch (PDOException $e) {
+                $error = "Gagal memperbarui gelombang: " . $e->getMessage();
+            }
         }
     } else {
         $error = "Silakan lengkapi semua field formulir edit.";
@@ -135,9 +147,18 @@ if (isset($_GET['success']) && empty($success)) {
     $success = sanitize($_GET['success']);
 }
 
-// Ambil semua data gelombang
-$stmt_all = $db->query("SELECT * FROM gelombang ORDER BY id DESC");
-$gelombang_list = $stmt_all->fetchAll();
+// Ambil data seluruh gelombang dengan agregasi pendaftar
+$stmt_all = $db->query("
+    SELECT g.*, 
+           COUNT(p.id) AS total_pendaftar,
+           SUM(CASE WHEN p.status_pembayaran = 'Lunas' THEN 1 ELSE 0 END) AS total_lunas,
+           SUM(CASE WHEN p.status_seleksi = 'Lulus' THEN 1 ELSE 0 END) AS total_lulus
+    FROM gelombang g
+    LEFT JOIN pendaftaran p ON p.gelombang_id = g.id
+    GROUP BY g.id
+    ORDER BY g.id DESC
+");
+$gelombang_list = $stmt_all->fetchAll(PDO::FETCH_ASSOC);
 
 // Cek apakah mode Edit aktif
 $edit_data = null;
@@ -146,208 +167,910 @@ if (isset($_GET['edit_id']) && (int)$_GET['edit_id'] > 0) {
     $stmt_edit->execute(['id' => (int)$_GET['edit_id']]);
     $edit_data = $stmt_edit->fetch();
 }
-?>
-<?php
-include 'includes/head.php';
-?>
-<body class="bg-gray-100 flex h-screen overflow-hidden">
 
-    <?php include 'includes/sidebar.php'; ?>
+// Analisis Statistik Sistem
+$total_gelombang = count($gelombang_list);
+$total_aktif = 0;
+$total_semua_pendaftar = 0;
+$total_semua_lunas = 0;
+$gelombang_berjalan = null;
+$today = date('Y-m-d');
+
+foreach ($gelombang_list as $g) {
+    if ($g['status'] === 'aktif') {
+        $total_aktif++;
+        if ($today >= $g['tgl_buka'] && $today <= $g['tgl_tutup'] && !$gelombang_berjalan) {
+            $gelombang_berjalan = $g;
+        }
+    }
+    $total_semua_pendaftar += (int)$g['total_pendaftar'];
+    $total_semua_lunas += (int)$g['total_lunas'];
+}
+
+// Helper penentuan status dan timeline waktu
+function get_gelombang_status_meta($g, $today) {
+    if ($g['status'] === 'nonaktif') {
+        return [
+            'code' => 'nonaktif',
+            'label' => 'Nonaktif',
+            'badge_bg' => 'bg-gray-100 text-gray-600 border-gray-300/80',
+            'dot_color' => 'bg-gray-400',
+            'desc' => 'Dinonaktifkan oleh panitia (tidak tampil di publik)',
+            'is_open' => false,
+            'progress' => 0
+        ];
+    }
+    
+    $buka = $g['tgl_buka'];
+    $tutup = $g['tgl_tutup'];
+    $ujian = $g['tgl_ujian'] ?? null;
+    $pengumuman = $g['tgl_pengumuman'] ?? null;
+    
+    if ($today < $buka) {
+        $diff = ceil((strtotime($buka) - strtotime($today)) / 86400);
+        return [
+            'code' => 'upcoming',
+            'label' => 'Segera Dibuka',
+            'badge_bg' => 'bg-amber-50 text-amber-800 border-amber-300/80',
+            'dot_color' => 'bg-amber-500',
+            'desc' => 'Dibuka dalam ' . $diff . ' hari lagi (' . date('d/m/Y', strtotime($buka)) . ')',
+            'is_open' => false,
+            'progress' => 5
+        ];
+    } elseif ($today >= $buka && $today <= $tutup) {
+        $total_duration = max(1, (strtotime($tutup) - strtotime($buka)) / 86400);
+        $elapsed = max(0, (strtotime($today) - strtotime($buka)) / 86400);
+        $pct = min(100, max(5, round(($elapsed / $total_duration) * 100)));
+        $sisa = ceil((strtotime($tutup) - strtotime($today)) / 86400);
+        
+        return [
+            'code' => 'open',
+            'label' => 'Sedang Dibuka',
+            'badge_bg' => 'bg-emerald-50 text-emerald-800 border-emerald-300',
+            'dot_color' => 'bg-emerald-600 animate-pulse',
+            'desc' => 'Tersisa ' . $sisa . ' hari pendaftaran (s/d ' . date('d/m/Y', strtotime($tutup)) . ')',
+            'is_open' => true,
+            'progress' => $pct
+        ];
+    } elseif ($ujian && $today <= $ujian) {
+        return [
+            'code' => 'ujian',
+            'label' => 'Masa Ujian Seleksi',
+            'badge_bg' => 'bg-indigo-50 text-indigo-800 border-indigo-300/80',
+            'dot_color' => 'bg-indigo-600',
+            'desc' => 'Pendaftaran ditutup, ujian pada ' . date('d/m/Y', strtotime($ujian)),
+            'is_open' => false,
+            'progress' => 80
+        ];
+    } elseif ($pengumuman && $today <= $pengumuman) {
+        return [
+            'code' => 'pengumuman',
+            'label' => 'Menunggu Pengumuman',
+            'badge_bg' => 'bg-purple-50 text-purple-800 border-purple-300/80',
+            'dot_color' => 'bg-purple-600',
+            'desc' => 'Pengumuman hasil seleksi pada ' . date('d/m/Y', strtotime($pengumuman)),
+            'is_open' => false,
+            'progress' => 95
+        ];
+    } else {
+        return [
+            'code' => 'closed',
+            'label' => 'Periode Selesai',
+            'badge_bg' => 'bg-slate-100 text-slate-700 border-slate-300',
+            'dot_color' => 'bg-slate-500',
+            'desc' => 'Seluruh tahapan seleksi gelombang ini telah rampung',
+            'is_open' => false,
+            'progress' => 100
+        ];
+    }
+}
+
+$page_title = 'Kelola Gelombang Pendaftaran - Admin Babul Jannah';
+include __DIR__ . '/includes/head.php';
+?>
+
+<style>
+    /* ======================================================== */
+    /* SINGLE SCROLLBAR & BRAND AESTHETICS                      */
+    /* ======================================================== */
+    html, body {
+        height: 100%;
+        max-height: 100vh;
+        overflow: hidden !important;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #F3F4F6;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #D1D5DB;
+        border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #9CA3AF;
+    }
+
+    /* Brand Tokens */
+    .bg-brand-primary {
+        background-color: #5C3E35 !important;
+    }
+    .bg-brand-deep {
+        background-color: #432B25 !important;
+    }
+    .text-brand-primary {
+        color: #5C3E35 !important;
+    }
+    .border-brand-primary {
+        border-color: #5C3E35 !important;
+    }
+
+    /* Timeline Stepper Styles */
+    .timeline-step {
+        position: relative;
+        padding-left: 1.75rem;
+    }
+    .timeline-step::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 1.25rem;
+        bottom: -0.75rem;
+        width: 2px;
+        background-color: #E5E7EB;
+    }
+    .timeline-step:last-child::before {
+        display: none;
+    }
+    .timeline-dot {
+        position: absolute;
+        left: 0.2rem;
+        top: 0.2rem;
+        width: 0.85rem;
+        height: 0.85rem;
+        border-radius: 9999px;
+        border: 2px solid #FFFFFF;
+        box-shadow: 0 0 0 2px #E5E7EB;
+    }
+
+    /* Quick Preset Buttons */
+    .btn-preset {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 0.5rem;
+        background-color: #F3F4F6;
+        color: #4B5563;
+        border: 1px solid #E5E7EB;
+        transition: all 0.15s ease;
+    }
+    .btn-preset:hover {
+        background-color: #E5E7EB;
+        color: #1F2937;
+        border-color: #D1D5DB;
+    }
+</style>
+
+<body class="bg-gray-100 flex h-screen overflow-hidden text-[#2F2522] font-sans antialiased">
+
+    <!-- Desktop Sidebar Navigation -->
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <!-- Main Content Area -->
-    <div class="flex-grow flex flex-col h-full overflow-hidden">
+    <div class="flex-grow flex flex-col h-full overflow-hidden min-w-0">
         
-        <?php include 'includes/header.php'; ?>
+        <!-- Header Navbar -->
+        <?php include __DIR__ . '/includes/header.php'; ?>
 
-        <!-- Scrollable content -->
-        <main class="flex-grow p-6 overflow-y-auto space-y-6">
-            
-            <?php if ($success): ?>
-            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-2xl text-sm font-medium flex items-center shadow-sm">
-                <i class="fa-solid fa-circle-check mr-3 text-emerald-600 text-lg"></i>
-                <span><?= $success ?></span>
+        <!-- Scrollable Main Container (Single Clean Scrollbar) -->
+        <main class="flex-grow p-4 sm:p-5 lg:p-6 overflow-y-auto space-y-5 custom-scrollbar bg-gray-50/70">
+
+            <!-- ======================================================== -->
+            <!-- 1. TOP ACTION & PORTAL STATUS BAR -->
+            <!-- ======================================================== -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200/80 shadow-xs">
+                <div>
+                    <div class="flex items-center space-x-2 text-[11px] font-extrabold text-brand-primary uppercase tracking-wider">
+                        <i class="fa-solid fa-calendar-week"></i>
+                        <span>Pengaturan Gelombang &amp; Jadwal Seleksi</span>
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span class="text-emerald-700 normal-case font-bold">PSB T.A 2026/2027</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        Kelola tanggal pembukaan, penutupan formulir, tanggal ujian seleksi, dan pengumuman hasil kelulusan.
+                    </p>
+                </div>
+
+                <!-- Portal Live Status & Action Buttons -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <?php if ($gelombang_berjalan): ?>
+                        <div class="flex items-center space-x-2 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-xl text-xs text-emerald-900 shadow-2xs">
+                            <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                            <span class="font-bold">Portal Live:</span>
+                            <span class="font-black text-emerald-950"><?= htmlspecialchars($gelombang_berjalan['nama_gelombang']) ?></span>
+                            <span class="text-[10px] bg-emerald-200/70 px-1.5 py-0.5 rounded font-bold text-emerald-800">Aktif</span>
+                        </div>
+                    <?php else: ?>
+                        <div class="flex items-center space-x-2 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-xl text-xs text-amber-900 shadow-2xs">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span class="font-bold">Portal:</span>
+                            <span class="font-black">Tidak Ada Gelombang Buka</span>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Shortcut to Public Website Section -->
+                    <a href="../index.php#jadwal" target="_blank" class="inline-flex items-center space-x-1.5 bg-white hover:bg-gray-100 text-gray-700 font-bold py-2 px-3 rounded-xl text-xs border border-gray-200 shadow-xs hover:shadow transition" title="Lihat Tampilan Jadwal di Website Publik">
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-400"></i>
+                        <span>Lihat di Web</span>
+                    </a>
+
+                    <!-- Add New Trigger Button (Scroll to form) -->
+                    <button type="button" onclick="focusFormGelombang()" class="inline-flex items-center space-x-1.5 bg-brand-primary hover:bg-brand-deep text-white font-bold py-2 px-3.5 rounded-xl text-xs shadow-xs hover:shadow transition transform active:scale-95" title="Tambah Gelombang Baru">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span>Gelombang Baru</span>
+                    </button>
+                </div>
             </div>
+
+            <!-- Alerts -->
+            <?php if ($success): ?>
+                <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-3.5 rounded-2xl shadow-xs flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
+                        <p class="font-bold text-xs"><?= $success ?></p>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-800 p-1"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             <?php endif; ?>
 
             <?php if ($error): ?>
-            <div class="bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-2xl text-sm font-medium flex items-center shadow-sm">
-                <i class="fa-solid fa-triangle-exclamation mr-3 text-red-600 text-lg"></i>
-                <span><?= $error ?></span>
-            </div>
+                <div class="bg-rose-50 border border-rose-300 text-rose-800 p-3.5 rounded-2xl shadow-xs flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <i class="fa-solid fa-circle-exclamation text-rose-600 text-base"></i>
+                        <p class="font-bold text-xs"><?= $error ?></p>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             <?php endif; ?>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <!-- Left: Form Tambah/Edit Gelombang -->
-                <div class="lg:col-span-5 bg-white rounded-3xl shadow-sm border border-gray-200/80 p-8 space-y-6 h-fit">
-                    <div class="border-b border-gray-100 pb-4 flex items-center justify-between">
-                        <h2 class="text-lg font-bold text-gray-900 flex items-center">
-                            <?php if ($edit_data): ?>
-                                <i class="fa-solid fa-pen-to-square mr-2 text-blue-600"></i> Edit Jadwal Gelombang
-                            <?php else: ?>
-                                <i class="fa-solid fa-calendar-plus mr-2 text-secondary"></i> Tambah Gelombang Baru
-                            <?php endif; ?>
-                        </h2>
+            <!-- ======================================================== -->
+            <!-- 2. TOP METRIC OVERVIEW CARDS (4 STATS) -->
+            <!-- ======================================================== -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                
+                <!-- Stat 1: Gelombang Berjalan -->
+                <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid fa-bullhorn"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider block">Status Gelombang</span>
+                        <div class="text-sm sm:text-base font-black text-gray-900 truncate">
+                            <?= $gelombang_berjalan ? htmlspecialchars($gelombang_berjalan['nama_gelombang']) : 'Tutup / Off' ?>
+                        </div>
+                        <span class="text-[10px] text-emerald-700 font-bold block truncate">
+                            <?= $gelombang_berjalan ? 'Pendaftaran Dibuka' : 'Semua Ditutup' ?>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Stat 2: Total Gelombang -->
+                <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider block">Total Gelombang</span>
+                        <div class="text-sm sm:text-base font-black text-gray-900">
+                            <?= $total_gelombang ?> <span class="text-xs font-normal text-gray-500">Gelombang</span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 font-medium block">
+                            <?= $total_aktif ?> Aktif &bull; <?= ($total_gelombang - $total_aktif) ?> Nonaktif
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Stat 3: Total Pendaftar -->
+                <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider block">Santri Terdaftar</span>
+                        <div class="text-sm sm:text-base font-black text-gray-900">
+                            <?= number_format($total_semua_pendaftar, 0, ',', '.') ?> <span class="text-xs font-normal text-gray-500">Santri</span>
+                        </div>
+                        <span class="text-[10px] text-emerald-700 font-bold block">
+                            <?= $total_semua_lunas ?> Terbayar Lunas
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Stat 4: Jadwal Ujian Terdekat -->
+                <?php
+                    $next_exam = null;
+                    foreach ($gelombang_list as $g) {
+                        if ($g['status'] === 'aktif' && !empty($g['tgl_ujian']) && $g['tgl_ujian'] >= $today) {
+                            if (!$next_exam || $g['tgl_ujian'] < $next_exam['tgl_ujian']) {
+                                $next_exam = $g;
+                            }
+                        }
+                    }
+                ?>
+                <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid fa-file-signature"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider block">Tes Terdekat</span>
+                        <div class="text-sm sm:text-base font-black text-gray-900 truncate">
+                            <?= $next_exam ? date('d M Y', strtotime($next_exam['tgl_ujian'])) : '-' ?>
+                        </div>
+                        <span class="text-[10px] text-amber-800 font-bold block truncate">
+                            <?= $next_exam ? htmlspecialchars($next_exam['nama_gelombang']) : 'Belum Dijadwalkan' ?>
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- 3. MAIN WORKSPACE: FORM (KIRI) & DAFTAR GELOMBANG (KANAN) -->
+            <!-- ======================================================== -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                
+                <!-- ======================================================== -->
+                <!-- A. FORM TAMBAH / EDIT GELOMBANG (4 / 12 COLS) -->
+                <!-- ======================================================== -->
+                <div id="formSection" class="lg:col-span-5 bg-white rounded-2xl shadow-xs border border-gray-200/80 p-5 space-y-4">
+                    
+                    <!-- Form Header -->
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-xl <?= $edit_data ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-brand-primary/10 text-brand-primary' ?> flex items-center justify-center text-sm font-bold">
+                                <i class="fa-solid <?= $edit_data ? 'fa-pen-to-square' : 'fa-calendar-plus' ?>"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-sm font-extrabold text-gray-900">
+                                    <?= $edit_data ? 'Edit Jadwal Gelombang' : 'Tambah Gelombang Baru' ?>
+                                </h2>
+                                <p class="text-[11px] text-gray-500">
+                                    <?= $edit_data ? 'Perbarui jadwal & status gelombang' : 'Buat periode pendaftaran santri baru' ?>
+                                </p>
+                            </div>
+                        </div>
+
                         <?php if ($edit_data): ?>
-                            <a href="gelombang.php" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-bold transition flex items-center">
-                                <i class="fa-solid fa-xmark mr-1"></i> Batal
+                            <a href="gelombang.php" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-lg font-bold transition flex items-center space-x-1" title="Batalkan Mode Edit">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                                <span>Batal</span>
                             </a>
                         <?php endif; ?>
                     </div>
-                    <form action="gelombang.php" method="POST" class="space-y-5">
+
+                    <?php if ($edit_data): ?>
+                        <div class="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-900 text-xs flex items-center space-x-2">
+                            <i class="fa-solid fa-info-circle text-blue-600"></i>
+                            <span>Sedang mengedit <strong><?= htmlspecialchars($edit_data['nama_gelombang']) ?></strong> (ID: <?= $edit_data['id'] ?>).</span>
+                        </div>
+                    <?php endif; ?>
+
+                    <form action="gelombang.php" method="POST" id="formGelombang" class="space-y-4">
                         <?php if ($edit_data): ?>
                             <input type="hidden" name="action" value="edit_gelombang">
                             <input type="hidden" name="id" value="<?= $edit_data['id'] ?>">
                         <?php else: ?>
                             <input type="hidden" name="action" value="add_gelombang">
                         <?php endif; ?>
-                        
+
+                        <!-- 1. Nama Gelombang & Tahun Ajaran -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="nama_gelombang" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                    Nama Gelombang <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="text" name="nama_gelombang" id="nama_gelombang" required placeholder="Contoh: Gelombang 1" value="<?= htmlspecialchars($edit_data['nama_gelombang'] ?? '') ?>" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white transition">
+                            </div>
+                            <div>
+                                <label for="tahun_ajaran" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                    Tahun Ajaran <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="text" name="tahun_ajaran" id="tahun_ajaran" required placeholder="Contoh: 2026/2027" value="<?= htmlspecialchars($edit_data['tahun_ajaran'] ?? '2026/2027') ?>" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white transition">
+                            </div>
+                        </div>
+
+                        <!-- 2. Jenjang yang Dibuka -->
                         <div>
-                            <label for="nama_gelombang" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nama Gelombang</label>
-                            <input type="text" name="nama_gelombang" id="nama_gelombang" required placeholder="Contoh: Gelombang 1" value="<?= $edit_data['nama_gelombang'] ?? '' ?>" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
+                            <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                Jenjang yang Dibuka <span class="text-rose-500">*</span>
+                            </label>
+                            <?php $current_jenjang = $edit_data['jenjang_dibuka'] ?? 'Semua'; ?>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center <?= ($current_jenjang === 'Semua') ? 'border-brand-primary bg-brand-primary/5 text-brand-primary font-black' : 'border-gray-200 bg-gray-50/70 text-gray-600 font-semibold hover:bg-gray-100' ?>">
+                                    <input type="radio" name="jenjang_dibuka" value="Semua" <?= ($current_jenjang === 'Semua') ? 'checked' : '' ?> class="sr-only">
+                                    <i class="fa-solid fa-school-flag text-xs mb-1"></i>
+                                    <span class="text-[10px]">Semua (SMP &amp; SMA)</span>
+                                </label>
+                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center <?= ($current_jenjang === 'Hanya SMP') ? 'border-teal-600 bg-teal-50 text-teal-800 font-black' : 'border-gray-200 bg-gray-50/70 text-gray-600 font-semibold hover:bg-gray-100' ?>">
+                                    <input type="radio" name="jenjang_dibuka" value="Hanya SMP" <?= ($current_jenjang === 'Hanya SMP') ? 'checked' : '' ?> class="sr-only">
+                                    <i class="fa-solid fa-school text-xs mb-1 text-teal-700"></i>
+                                    <span class="text-[10px]">Hanya SMP IT</span>
+                                </label>
+                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center <?= ($current_jenjang === 'Hanya SMA') ? 'border-indigo-600 bg-indigo-50 text-indigo-800 font-black' : 'border-gray-200 bg-gray-50/70 text-gray-600 font-semibold hover:bg-gray-100' ?>">
+                                    <input type="radio" name="jenjang_dibuka" value="Hanya SMA" <?= ($current_jenjang === 'Hanya SMA') ? 'checked' : '' ?> class="sr-only">
+                                    <i class="fa-solid fa-graduation-cap text-xs mb-1 text-indigo-700"></i>
+                                    <span class="text-[10px]">Hanya SMA IT</span>
+                                </label>
+                            </div>
                         </div>
 
+                        <!-- 3. Periode Pendaftaran (Tanggal Buka s/d Tanggal Tutup) -->
+                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider flex items-center">
+                                    <i class="fa-solid fa-calendar-days text-brand-primary mr-1.5"></i> Periode Pendaftaran
+                                </span>
+                                <div class="flex items-center space-x-1">
+                                    <button type="button" onclick="setDurasiPendaftaran(30)" class="btn-preset" title="Set Tanggal Tutup 30 hari dari Buka">+30 Hari</button>
+                                    <button type="button" onclick="setDurasiPendaftaran(60)" class="btn-preset" title="Set Tanggal Tutup 60 hari dari Buka">+60 Hari</button>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label for="tgl_buka" class="block text-[10px] font-bold text-gray-600 mb-1">Tanggal Buka</label>
+                                    <input type="date" name="tgl_buka" id="tgl_buka" required value="<?= $edit_data['tgl_buka'] ?? '' ?>" class="w-full border border-gray-300 focus:border-brand-primary rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                                <div>
+                                    <label for="tgl_tutup" class="block text-[10px] font-bold text-gray-600 mb-1">Tanggal Tutup</label>
+                                    <input type="date" name="tgl_tutup" id="tgl_tutup" required value="<?= $edit_data['tgl_tutup'] ?? '' ?>" class="w-full border border-gray-300 focus:border-brand-primary rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                            </div>
+                            <p id="durasiPreview" class="text-[10px] text-gray-500 font-medium"></p>
+                        </div>
+
+                        <!-- 4. Agenda Seleksi & Pengumuman -->
+                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider flex items-center">
+                                    <i class="fa-solid fa-clipboard-check text-amber-700 mr-1.5"></i> Agenda Ujian &amp; Pengumuman
+                                </span>
+                                <div class="flex items-center space-x-1">
+                                    <button type="button" onclick="setJadwalUjianOtomatis()" class="btn-preset" title="Set Tanggal Ujian 7 hari setelah pendaftaran ditutup">Ujian +7h</button>
+                                    <button type="button" onclick="setJadwalPengumumanOtomatis()" class="btn-preset" title="Set Tanggal Pengumuman 7 hari setelah ujian">Hasil +7h</button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label for="tgl_ujian" class="block text-[10px] font-bold text-indigo-900 mb-1">
+                                        <i class="fa-solid fa-file-pen text-indigo-600 mr-0.5"></i> Tanggal Ujian
+                                    </label>
+                                    <input type="date" name="tgl_ujian" id="tgl_ujian" required value="<?= $edit_data['tgl_ujian'] ?? '' ?>" class="w-full border border-gray-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                                <div>
+                                    <label for="tgl_pengumuman" class="block text-[10px] font-bold text-purple-900 mb-1">
+                                        <i class="fa-solid fa-trophy text-purple-600 mr-0.5"></i> Pengumuman
+                                    </label>
+                                    <input type="date" name="tgl_pengumuman" id="tgl_pengumuman" required value="<?= $edit_data['tgl_pengumuman'] ?? '' ?>" class="w-full border border-gray-300 focus:border-purple-600 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Status Publikasi -->
                         <div>
-                            <label for="tahun_ajaran" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Tahun Ajaran</label>
-                            <input type="text" name="tahun_ajaran" id="tahun_ajaran" required placeholder="Contoh: 2026/2027" value="<?= $edit_data['tahun_ajaran'] ?? '' ?>" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="tgl_buka" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Tanggal Buka</label>
-                                <input type="date" name="tgl_buka" id="tgl_buka" required value="<?= $edit_data['tgl_buka'] ?? '' ?>" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
-                            </div>
-                            <div>
-                                <label for="tgl_tutup" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Tanggal Tutup</label>
-                                <input type="date" name="tgl_tutup" id="tgl_tutup" required value="<?= $edit_data['tgl_tutup'] ?? '' ?>" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="tgl_ujian" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Tanggal Ujian</label>
-                                <input type="date" name="tgl_ujian" id="tgl_ujian" required value="<?= $edit_data['tgl_ujian'] ?? '' ?>" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
-                            </div>
-                            <div>
-                                <label for="tgl_pengumuman" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Tgl Pengumuman</label>
-                                <input type="date" name="tgl_pengumuman" id="tgl_pengumuman" required value="<?= $edit_data['tgl_pengumuman'] ?? '' ?>" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label for="jenjang_dibuka" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Jenjang yang Dibuka</label>
-                            <select name="jenjang_dibuka" id="jenjang_dibuka" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
-                                <option value="Semua" <?= ($edit_data && ($edit_data['jenjang_dibuka'] ?? 'Semua') === 'Semua') ? 'selected' : '' ?>>Semua Jenjang (SMP & SMA)</option>
-                                <option value="Hanya SMP" <?= ($edit_data && ($edit_data['jenjang_dibuka'] ?? '') === 'Hanya SMP') ? 'selected' : '' ?>>Hanya SMP IT</option>
-                                <option value="Hanya SMA" <?= ($edit_data && ($edit_data['jenjang_dibuka'] ?? '') === 'Hanya SMA') ? 'selected' : '' ?>>Hanya SMA IT</option>
+                            <label for="status" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                Status Publikasi Gelombang <span class="text-rose-500">*</span>
+                            </label>
+                            <select name="status" id="status" class="w-full border border-gray-300 focus:border-brand-primary rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white">
+                                <option value="aktif" <?= ($edit_data && $edit_data['status'] === 'aktif') || (!$edit_data) ? 'selected' : '' ?>>
+                                    🟢 Aktif (Tampilkan di Jadwal &amp; Formulir Web)
+                                </option>
+                                <option value="nonaktif" <?= ($edit_data && $edit_data['status'] === 'nonaktif') ? 'selected' : '' ?>>
+                                    ⚪ Nonaktif (Sembunyikan dari Publik)
+                                </option>
                             </select>
+                            <p class="text-[10px] text-gray-500 mt-1 leading-normal">
+                                Gelombang aktif akan otomatis dapat dipilih oleh calon santri saat periode pendaftaran telah tiba.
+                            </p>
                         </div>
 
-                        <div>
-                            <label for="status" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Status Awal</label>
-                            <select name="status" id="status" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary/20 rounded-xl px-4 py-3 text-sm text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none">
-                                <option value="nonaktif" <?= ($edit_data && $edit_data['status'] === 'nonaktif') ? 'selected' : '' ?>>Nonaktif</option>
-                                <option value="aktif" <?= ($edit_data && $edit_data['status'] === 'aktif') ? 'selected' : '' ?>>Aktif (Tampilkan di Jadwal Publik)</option>
-                            </select>
+                        <!-- Submit Button -->
+                        <div class="pt-2">
+                            <?php if ($edit_data): ?>
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-floppy-disk text-xs"></i>
+                                    <span>Simpan Perubahan Jadwal</span>
+                                </button>
+                            <?php else: ?>
+                                <button type="submit" class="w-full bg-brand-primary hover:bg-brand-deep text-white font-extrabold py-2.5 px-4 rounded-xl text-xs shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-plus text-xs"></i>
+                                    <span>Tambahkan Gelombang Baru</span>
+                                </button>
+                            <?php endif; ?>
                         </div>
 
-                        <?php if ($edit_data): ?>
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center space-x-2">
-                                <i class="fa-solid fa-floppy-disk"></i>
-                                <span>Simpan Perubahan Jadwal</span>
-                            </button>
-                        <?php else: ?>
-                            <button type="submit" class="w-full bg-primary hover:bg-secondary text-white font-bold py-3.5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center space-x-2">
-                                <i class="fa-solid fa-floppy-disk"></i>
-                                <span>Simpan Gelombang</span>
-                            </button>
-                        <?php endif; ?>
                     </form>
                 </div>
 
-                <!-- Right: Daftar Gelombang Table -->
-                <div class="lg:col-span-7 bg-white rounded-3xl shadow-sm border border-gray-200/80 p-8 space-y-6">
-                    <div class="border-b border-gray-100 pb-4">
-                        <h2 class="text-lg font-bold text-gray-900 flex items-center"><i class="fa-solid fa-list mr-2 text-secondary"></i> Daftar Gelombang Pendaftaran</h2>
-                    </div>
+                <!-- ======================================================== -->
+                <!-- B. DAFTAR GELOMBANG: DUAL VIEW (KARTU & TABEL) (7 / 12 COLS) -->
+                <!-- ======================================================== -->
+                <div class="lg:col-span-7 space-y-4">
                     
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead>
-                                <tr class="bg-gray-50/80 border-b border-gray-200 text-gray-600 uppercase tracking-wider font-bold text-xs">
-                                    <th class="px-5 py-4">Nama Gelombang</th>
-                                    <th class="px-5 py-4">Jenjang</th>
-                                    <th class="px-5 py-4">Tahun Ajaran</th>
-                                    <th class="px-5 py-4">Periode Pendaftaran</th>
-                                    <th class="px-5 py-4">Tgl Ujian</th>
-                                    <th class="px-5 py-4">Tgl Pengumuman</th>
-                                    <th class="px-5 py-4">Status</th>
-                                    <th class="px-5 py-4 text-center">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 text-gray-700 font-medium">
-                                <?php if (count($gelombang_list) === 0): ?>
-                                    <tr>
-                                        <td colspan="7" class="px-5 py-8 text-center text-gray-400">Belum ada gelombang pendaftaran dibuat.</td>
-                                    </tr>
-                                <?php else: ?>
-                                    <?php foreach ($gelombang_list as $g): ?>
-                                        <tr class="hover:bg-gray-50/80 transition-colors <?= ($edit_data && $edit_data['id'] == $g['id']) ? 'bg-blue-50/60' : '' ?>">
-                                            <td class="px-5 py-4 font-bold text-gray-900"><?= $g['nama_gelombang'] ?></td>
-                                            <td class="px-5 py-4 font-semibold">
-                                                <span class="bg-gray-100 text-gray-700 text-[10px] px-2 py-1 rounded-md border border-gray-200"><?= htmlspecialchars($g['jenjang_dibuka'] ?? 'Semua') ?></span>
-                                            </td>
-                                            <td class="px-5 py-4 font-semibold text-gray-700"><?= $g['tahun_ajaran'] ?></td>
-                                            <td class="px-5 py-4 text-gray-600 text-xs font-semibold">
-                                                <?= date('d/m/Y', strtotime($g['tgl_buka'])) ?> - <?= date('d/m/Y', strtotime($g['tgl_tutup'])) ?>
-                                            </td>
-                                            <td class="px-5 py-4">
-                                                <?php if (!empty($g['tgl_ujian'])): ?>
-                                                    <span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-lg border border-blue-200/60 font-bold">
-                                                        <?= date('d/m/Y', strtotime($g['tgl_ujian'])) ?>
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="text-gray-400">-</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td class="px-5 py-4">
-                                                <?php if (!empty($g['tgl_pengumuman'])): ?>
-                                                    <span class="bg-amber-50 text-amber-700 text-xs px-2.5 py-1 rounded-lg border border-amber-200/60 font-bold">
-                                                        <?= date('d/m/Y', strtotime($g['tgl_pengumuman'])) ?>
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="text-gray-400">-</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td class="px-5 py-4">
-                                                <?php if ($g['status'] === 'aktif'): ?>
-                                                    <span class="bg-emerald-50 text-emerald-800 text-xs px-3 py-1 rounded-full border border-emerald-200 font-bold flex items-center w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1.5"></span>Aktif</span>
-                                                <?php else: ?>
-                                                    <span class="bg-gray-100 text-gray-500 text-xs px-3 py-1 rounded-full font-bold">Nonaktif</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td class="px-5 py-4 text-center space-x-2">
-                                                <a href="gelombang.php?edit_id=<?= $g['id'] ?>" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60 transition" title="Edit Jadwal & Tanggal">
-                                                    <i class="fa-solid fa-pen-to-square"></i>
-                                                    <span>Edit</span>
-                                                </a>
-                                                <a href="gelombang.php?action=toggle_status&id=<?= $g['id'] ?>&current=<?= $g['status'] ?>" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition" title="Ubah Status Aktif">
-                                                    <span>Toggle</span>
-                                                </a>
-                                                <a href="gelombang.php?action=delete&id=<?= $g['id'] ?>" onclick="return confirm('Apakah Anda yakin ingin menghapus gelombang ini?')" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/60 transition" title="Hapus Gelombang">
-                                                    <i class="fa-solid fa-trash-can"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                    <!-- Header List & View Switcher -->
+                    <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 rounded-xl bg-teal-50 text-teal-800 flex items-center justify-center font-bold text-sm">
+                                <i class="fa-solid fa-timeline"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-extrabold text-gray-900">Daftar Jadwal Gelombang</h3>
+                                <p class="text-[11px] text-gray-500">Terdapat <?= count($gelombang_list) ?> gelombang dalam sistem</p>
+                            </div>
+                        </div>
+
+                        <!-- View Toggle Tabs -->
+                        <div class="flex items-center bg-gray-100 p-1 rounded-xl self-start sm:self-auto">
+                            <button type="button" onclick="switchView('cards')" id="tabBtnCards" class="px-3 py-1 rounded-lg text-xs font-extrabold bg-white text-gray-800 shadow-2xs transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-grip text-xs"></i>
+                                <span>Kartu Alur</span>
+                            </button>
+                            <button type="button" onclick="switchView('table')" id="tabBtnTable" class="px-3 py-1 rounded-lg text-xs font-bold text-gray-500 hover:text-gray-800 transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-table-list text-xs"></i>
+                                <span>Tabel Data</span>
+                            </button>
+                        </div>
                     </div>
+
+                    <!-- VIEW 1: TIMELINE CARDS (DEFAULT) -->
+                    <div id="viewCards" class="space-y-4">
+                        <?php if (count($gelombang_list) === 0): ?>
+                            <div class="bg-white p-8 rounded-2xl border border-gray-200 text-center text-gray-400 space-y-2">
+                                <i class="fa-regular fa-calendar-xmark text-3xl text-gray-300"></i>
+                                <p class="text-xs font-bold">Belum ada gelombang pendaftaran yang dibuat.</p>
+                                <p class="text-[11px]">Gunakan formulir di sebelah kiri untuk membuat gelombang pertama.</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($gelombang_list as $g): 
+                                $meta = get_gelombang_status_meta($g, $today);
+                                $is_editing = ($edit_data && $edit_data['id'] == $g['id']);
+                                $card_border = $is_editing ? 'border-blue-400 ring-2 ring-blue-100' : ($meta['is_open'] ? 'border-emerald-300 ring-1 ring-emerald-100' : 'border-gray-200/80');
+                            ?>
+                            <div class="bg-white rounded-2xl border <?= $card_border ?> shadow-xs p-5 space-y-4 transition hover:shadow-sm">
+                                
+                                <!-- Card Header -->
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-gray-100">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-9 h-9 rounded-xl <?= $meta['is_open'] ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700' ?> flex items-center justify-center font-black text-sm shadow-2xs">
+                                            <?= preg_match('/\d+/', $g['nama_gelombang'], $m) ? $m[0] : 'G' ?>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center space-x-2">
+                                                <h4 class="text-sm font-black text-gray-900"><?= htmlspecialchars($g['nama_gelombang']) ?></h4>
+                                                <span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">T.A <?= htmlspecialchars($g['tahun_ajaran']) ?></span>
+                                            </div>
+                                            <div class="flex items-center space-x-2 text-[10px] text-gray-500 mt-0.5">
+                                                <span>Jenjang: <strong class="text-gray-700"><?= htmlspecialchars($g['jenjang_dibuka'] ?? 'Semua') ?></strong></span>
+                                                <span>&bull;</span>
+                                                <span class="font-mono text-gray-400">ID: <?= $g['id'] ?></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Status Pill -->
+                                    <div class="flex items-center space-x-2">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black border <?= $meta['badge_bg'] ?>">
+                                            <span class="w-1.5 h-1.5 rounded-full mr-1.5 <?= $meta['dot_color'] ?>"></span>
+                                            <?= $meta['label'] ?>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Timeline 4 Tahapan PSB -->
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-1">
+                                    
+                                    <!-- 1. Buka -->
+                                    <div class="p-2.5 rounded-xl bg-gray-50/80 border border-gray-200/70">
+                                        <div class="flex items-center space-x-1.5 text-gray-500 text-[10px] font-extrabold uppercase tracking-wider mb-1">
+                                            <i class="fa-solid fa-calendar-check text-emerald-600"></i>
+                                            <span>Buka</span>
+                                        </div>
+                                        <div class="text-xs font-black text-gray-900">
+                                            <?= date('d M Y', strtotime($g['tgl_buka'])) ?>
+                                        </div>
+                                        <span class="text-[9px] text-gray-500 block">Pendaftaran mulai</span>
+                                    </div>
+
+                                    <!-- 2. Tutup -->
+                                    <div class="p-2.5 rounded-xl bg-gray-50/80 border border-gray-200/70">
+                                        <div class="flex items-center space-x-1.5 text-gray-500 text-[10px] font-extrabold uppercase tracking-wider mb-1">
+                                            <i class="fa-solid fa-hourglass-end text-rose-600"></i>
+                                            <span>Tutup</span>
+                                        </div>
+                                        <div class="text-xs font-black text-gray-900">
+                                            <?= date('d M Y', strtotime($g['tgl_tutup'])) ?>
+                                        </div>
+                                        <span class="text-[9px] text-gray-500 block">Batas akhir berkas</span>
+                                    </div>
+
+                                    <!-- 3. Ujian Seleksi -->
+                                    <div class="p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-200/70">
+                                        <div class="flex items-center space-x-1.5 text-indigo-900 text-[10px] font-extrabold uppercase tracking-wider mb-1">
+                                            <i class="fa-solid fa-file-pen text-indigo-600"></i>
+                                            <span>Ujian</span>
+                                        </div>
+                                        <div class="text-xs font-black text-indigo-950">
+                                            <?= !empty($g['tgl_ujian']) ? date('d M Y', strtotime($g['tgl_ujian'])) : '-' ?>
+                                        </div>
+                                        <span class="text-[9px] text-indigo-700/80 block">Tes tertulis &amp; lisan</span>
+                                    </div>
+
+                                    <!-- 4. Pengumuman -->
+                                    <div class="p-2.5 rounded-xl bg-purple-50/50 border border-purple-200/70">
+                                        <div class="flex items-center space-x-1.5 text-purple-900 text-[10px] font-extrabold uppercase tracking-wider mb-1">
+                                            <i class="fa-solid fa-trophy text-purple-600"></i>
+                                            <span>Kelulusan</span>
+                                        </div>
+                                        <div class="text-xs font-black text-purple-950">
+                                            <?= !empty($g['tgl_pengumuman']) ? date('d M Y', strtotime($g['tgl_pengumuman'])) : '-' ?>
+                                        </div>
+                                        <span class="text-[9px] text-purple-700/80 block">Pengumuman hasil</span>
+                                    </div>
+
+                                </div>
+
+                                <!-- Progress Bar Waktu & Deskripsi Status -->
+                                <div>
+                                    <div class="flex items-center justify-between text-[10px] text-gray-500 font-bold mb-1">
+                                        <span>Status Tahapan: <span class="text-gray-800"><?= $meta['desc'] ?></span></span>
+                                        <span><?= $meta['progress'] ?>%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                        <div class="h-1.5 rounded-full <?= $meta['is_open'] ? 'bg-emerald-500' : ($meta['code'] === 'upcoming' ? 'bg-amber-500' : 'bg-brand-primary') ?>" style="width: <?= $meta['progress'] ?>%"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Footer Card: Registrant Stats & Action Buttons -->
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-gray-100">
+                                    
+                                    <!-- Registrants Info -->
+                                    <div class="flex items-center space-x-3 text-xs">
+                                        <a href="pendaftar.php?gelombang_id=<?= $g['id'] ?>" class="inline-flex items-center space-x-1.5 text-brand-primary hover:text-brand-deep font-bold transition group" title="Lihat semua santri pada gelombang ini">
+                                            <i class="fa-solid fa-users text-gray-400 group-hover:text-brand-primary"></i>
+                                            <span><?= (int)$g['total_pendaftar'] ?> Santri</span>
+                                            <i class="fa-solid fa-chevron-right text-[9px] text-gray-400 group-hover:translate-x-0.5 transition-transform"></i>
+                                        </a>
+                                        <span class="text-gray-300">|</span>
+                                        <span class="text-[11px] text-emerald-700 font-bold">
+                                            <i class="fa-solid fa-circle-check text-[10px] mr-1"></i><?= (int)$g['total_lunas'] ?> Lunas
+                                        </span>
+                                        <span class="text-gray-300">|</span>
+                                        <span class="text-[11px] text-indigo-700 font-bold">
+                                            <i class="fa-solid fa-graduation-cap text-[10px] mr-1"></i><?= (int)$g['total_lulus'] ?> Lulus
+                                        </span>
+                                    </div>
+
+                                    <!-- Action Buttons -->
+                                    <div class="flex items-center space-x-1.5 self-end sm:self-auto">
+                                        <!-- Edit Button -->
+                                        <a href="gelombang.php?edit_id=<?= $g['id'] ?>#formSection" class="inline-flex items-center space-x-1 bg-white hover:bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-2xs" title="Edit Rincian Gelombang">
+                                            <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                            <span>Edit</span>
+                                        </a>
+
+                                        <!-- Toggle Status Button -->
+                                        <?php if ($g['status'] === 'aktif'): ?>
+                                            <a href="gelombang.php?action=toggle_status&id=<?= $g['id'] ?>&current=aktif" onclick="return confirm('Nonaktifkan gelombang <?= htmlspecialchars($g['nama_gelombang']) ?>? Gelombang ini akan disembunyikan dari portal pendaftaran publik.')" class="inline-flex items-center space-x-1 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-2xs" title="Nonaktifkan Gelombang">
+                                                <i class="fa-solid fa-eye-slash text-xs text-gray-400"></i>
+                                                <span>Nonaktifkan</span>
+                                            </a>
+                                        <?php else: ?>
+                                            <a href="gelombang.php?action=toggle_status&id=<?= $g['id'] ?>&current=nonaktif" class="inline-flex items-center space-x-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-2xs" title="Aktifkan Gelombang di Portal Publik">
+                                                <i class="fa-solid fa-eye text-xs text-emerald-600"></i>
+                                                <span>Aktifkan</span>
+                                            </a>
+                                        <?php endif; ?>
+
+                                        <!-- Delete Button -->
+                                        <a href="gelombang.php?action=delete&id=<?= $g['id'] ?>" onclick="return confirm('Apakah Anda yakin ingin menghapus <?= htmlspecialchars($g['nama_gelombang']) ?>? Jika sudah ada santri terdaftar, penghapusan akan dibatalkan secara otomatis.')" class="inline-flex items-center space-x-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 px-2 py-1 rounded-lg text-xs font-bold transition shadow-2xs" title="Hapus Gelombang">
+                                            <i class="fa-regular fa-trash-can text-xs"></i>
+                                        </a>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- VIEW 2: TABULAR DATA VIEW (CLEAN DATA TABLE) -->
+                    <div id="viewTable" class="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-4 hidden space-y-3">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs whitespace-nowrap">
+                                <thead>
+                                    <tr class="bg-gray-50/80 border-b border-gray-200 text-gray-600 uppercase tracking-wider font-extrabold">
+                                        <th class="px-4 py-3">Gelombang</th>
+                                        <th class="px-4 py-3">Jenjang</th>
+                                        <th class="px-4 py-3">T.A</th>
+                                        <th class="px-4 py-3">Periode Pendaftaran</th>
+                                        <th class="px-4 py-3">Tgl Ujian</th>
+                                        <th class="px-4 py-3">Pengumuman</th>
+                                        <th class="px-4 py-3 text-center">Pendaftar</th>
+                                        <th class="px-4 py-3">Status</th>
+                                        <th class="px-4 py-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 font-medium text-gray-700">
+                                    <?php foreach ($gelombang_list as $g): 
+                                        $meta = get_gelombang_status_meta($g, $today);
+                                    ?>
+                                    <tr class="hover:bg-gray-50/60 transition">
+                                        <td class="px-4 py-3 font-black text-gray-900"><?= htmlspecialchars($g['nama_gelombang']) ?></td>
+                                        <td class="px-4 py-3">
+                                            <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                <?= htmlspecialchars($g['jenjang_dibuka'] ?? 'Semua') ?>
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 font-semibold"><?= htmlspecialchars($g['tahun_ajaran']) ?></td>
+                                        <td class="px-4 py-3 text-gray-600">
+                                            <?= date('d/m/Y', strtotime($g['tgl_buka'])) ?> &ndash; <?= date('d/m/Y', strtotime($g['tgl_tutup'])) ?>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="bg-indigo-50 text-indigo-800 font-bold px-2 py-0.5 rounded text-[10px]">
+                                                <?= !empty($g['tgl_ujian']) ? date('d/m/Y', strtotime($g['tgl_ujian'])) : '-' ?>
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="bg-purple-50 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px]">
+                                                <?= !empty($g['tgl_pengumuman']) ? date('d/m/Y', strtotime($g['tgl_pengumuman'])) : '-' ?>
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-center font-bold">
+                                            <a href="pendaftar.php?gelombang_id=<?= $g['id'] ?>" class="text-brand-primary hover:underline">
+                                                <?= (int)$g['total_pendaftar'] ?>
+                                            </a>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border <?= $meta['badge_bg'] ?>">
+                                                <?= $meta['label'] ?>
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-center space-x-1.5">
+                                            <a href="gelombang.php?edit_id=<?= $g['id'] ?>" class="text-blue-600 hover:text-blue-800 p-1 font-bold" title="Edit">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </a>
+                                            <a href="gelombang.php?action=toggle_status&id=<?= $g['id'] ?>&current=<?= $g['status'] ?>" class="text-gray-500 hover:text-gray-800 p-1" title="Toggle Aktif/Nonaktif">
+                                                <i class="fa-solid fa-power-off"></i>
+                                            </a>
+                                            <a href="gelombang.php?action=delete&id=<?= $g['id'] ?>" onclick="return confirm('Hapus gelombang ini?')" class="text-rose-600 hover:text-rose-800 p-1" title="Hapus">
+                                                <i class="fa-regular fa-trash-can"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </div>
+
             </div>
 
         </main>
     </div>
+
+    <!-- Client-side Interactive Script -->
+    <script>
+        // 1. Switch View: Cards vs Table
+        function switchView(view) {
+            const cards = document.getElementById('viewCards');
+            const table = document.getElementById('viewTable');
+            const btnCards = document.getElementById('tabBtnCards');
+            const btnTable = document.getElementById('tabBtnTable');
+
+            if (view === 'cards') {
+                cards.classList.remove('hidden');
+                table.classList.add('hidden');
+                btnCards.className = 'px-3 py-1 rounded-lg text-xs font-extrabold bg-white text-gray-800 shadow-2xs transition flex items-center space-x-1.5';
+                btnTable.className = 'px-3 py-1 rounded-lg text-xs font-bold text-gray-500 hover:text-gray-800 transition flex items-center space-x-1.5';
+            } else {
+                cards.classList.add('hidden');
+                table.classList.remove('hidden');
+                btnTable.className = 'px-3 py-1 rounded-lg text-xs font-extrabold bg-white text-gray-800 shadow-2xs transition flex items-center space-x-1.5';
+                btnCards.className = 'px-3 py-1 rounded-lg text-xs font-bold text-gray-500 hover:text-gray-800 transition flex items-center space-x-1.5';
+            }
+        }
+
+        // 2. Focus form smoothly
+        function focusFormGelombang() {
+            const formSec = document.getElementById('formSection');
+            if (formSec) {
+                formSec.scrollIntoView({ behavior: 'smooth' });
+                const inputNama = document.getElementById('nama_gelombang');
+                if (inputNama) inputNama.focus();
+            }
+        }
+
+        // 3. Quick Date Presets
+        function addDays(dateStr, days) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            d.setDate(d.getDate() + days);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function setDurasiPendaftaran(days) {
+            const buka = document.getElementById('tgl_buka');
+            const tutup = document.getElementById('tgl_tutup');
+            if (!buka.value) {
+                // Jika buka kosong, set hari ini
+                const today = new Date();
+                buka.value = today.toISOString().split('T')[0];
+            }
+            tutup.value = addDays(buka.value, days);
+            updateDurasiPreview();
+        }
+
+        function setJadwalUjianOtomatis() {
+            const tutup = document.getElementById('tgl_tutup');
+            const ujian = document.getElementById('tgl_ujian');
+            if (tutup.value) {
+                ujian.value = addDays(tutup.value, 7);
+            } else {
+                alert('Silakan tentukan Tanggal Tutup pendaftaran terlebih dahulu.');
+            }
+        }
+
+        function setJadwalPengumumanOtomatis() {
+            const ujian = document.getElementById('tgl_ujian');
+            const pengumuman = document.getElementById('tgl_pengumuman');
+            if (ujian.value) {
+                pengumuman.value = addDays(ujian.value, 7);
+            } else {
+                alert('Silakan tentukan Tanggal Ujian seleksi terlebih dahulu.');
+            }
+        }
+
+        function updateDurasiPreview() {
+            const buka = document.getElementById('tgl_buka').value;
+            const tutup = document.getElementById('tgl_tutup').value;
+            const preview = document.getElementById('durasiPreview');
+
+            if (buka && tutup) {
+                const diff = (new Date(tutup) - new Date(buka)) / (1000 * 60 * 60 * 24);
+                if (diff < 0) {
+                    preview.innerHTML = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Tanggal tutup tidak boleh sebelum tanggal buka!</span>';
+                } else {
+                    preview.innerHTML = `<span class="text-emerald-700 font-bold"><i class="fa-solid fa-clock mr-1"></i>Durasi pendaftaran: ${Math.round(diff)} hari</span>`;
+                }
+            } else {
+                preview.innerHTML = '';
+            }
+        }
+
+        document.getElementById('tgl_buka').addEventListener('change', updateDurasiPreview);
+        document.getElementById('tgl_tutup').addEventListener('change', updateDurasiPreview);
+        updateDurasiPreview();
+
+        // Form Submit Validation
+        document.getElementById('formGelombang').addEventListener('submit', function(e) {
+            const buka = document.getElementById('tgl_buka').value;
+            const tutup = document.getElementById('tgl_tutup').value;
+            if (buka && tutup && tutup < buka) {
+                e.preventDefault();
+                alert('Kesalahan: Tanggal tutup pendaftaran tidak boleh lebih awal dari tanggal buka!');
+                document.getElementById('tgl_tutup').focus();
+            }
+        });
+    </script>
 
 </body>
 </html>
