@@ -18,7 +18,7 @@ $success_msg = '';
 $error_msg = '';
 
 // Handle Form Submit
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     try {
         $db->beginTransaction();
 
@@ -152,6 +152,142 @@ include __DIR__ . '/includes/head.php';
         color: #FDE047 !important;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
+
+    /* ======================================================== */
+    /* INPUT GROUP RUPIAH ANTI-MENUMPUK (100% BULLETPROOF)      */
+    /* ======================================================== */
+    .input-rp-group {
+        display: flex !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        background-color: #FFFFFF !important;
+        border: 1px solid #D1D5DB !important;
+        border-radius: 0.75rem !important;
+        overflow: hidden !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+    }
+    .input-rp-group:focus-within {
+        border-color: #5C3E35 !important;
+        box-shadow: 0 0 0 3px rgba(92, 62, 53, 0.15) !important;
+    }
+    .input-rp-addon {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 10px !important;
+        background-color: #F3F4F6 !important;
+        color: #4B5563 !important;
+        font-weight: 800 !important;
+        font-size: 11px !important;
+        border-right: 1px solid #E5E7EB !important;
+        user-select: none !important;
+        flex-shrink: 0 !important;
+    }
+    .input-rp-control {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        border: none !important;
+        outline: none !important;
+        padding: 7px 10px !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        color: #1F2937 !important;
+        background-color: #FFFFFF !important;
+    }
+    .input-rp-control:focus {
+        outline: none !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Varian Khusus SPP (Emerald) */
+    .input-rp-group-emerald {
+        border-color: #A7F3D0 !important;
+        background-color: #F0FDF4 !important;
+    }
+    .input-rp-group-emerald:focus-within {
+        border-color: #059669 !important;
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15) !important;
+    }
+    .input-rp-group-emerald .input-rp-addon {
+        background-color: #DCFCE7 !important;
+        color: #065F46 !important;
+        border-right: 1px solid #A7F3D0 !important;
+    }
+    .input-rp-group-emerald .input-rp-control {
+        color: #064E3B !important;
+        font-weight: 900 !important;
+        background-color: #F0FDF4 !important;
+    }
+
+    /* Varian Khusus Tes SMP (Teal) */
+    .input-rp-group-teal {
+        border-color: #99F6E4 !important;
+        background-color: #FFFFFF !important;
+    }
+    .input-rp-group-teal:focus-within {
+        border-color: #0D9488 !important;
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
+    }
+    .input-rp-group-teal .input-rp-addon {
+        background-color: #CCFBF1 !important;
+        color: #0F766E !important;
+        border-right: 1px solid #99F6E4 !important;
+        font-size: 12px !important;
+        padding: 0 12px !important;
+    }
+    .input-rp-group-teal .input-rp-control {
+        font-size: 14px !important;
+        font-weight: 900 !important;
+        color: #134E4A !important;
+        padding: 8px 12px !important;
+    }
+
+    /* Varian Khusus Tes SMA (Indigo) */
+    .input-rp-group-indigo {
+        border-color: #C7D2FE !important;
+        background-color: #FFFFFF !important;
+    }
+    .input-rp-group-indigo:focus-within {
+        border-color: #4F46E5 !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+    }
+    .input-rp-group-indigo .input-rp-addon {
+        background-color: #E0E7FF !important;
+        color: #3730A3 !important;
+        border-right: 1px solid #C7D2FE !important;
+        font-size: 12px !important;
+        padding: 0 12px !important;
+    }
+    .input-rp-group-indigo .input-rp-control {
+        font-size: 14px !important;
+        font-weight: 900 !important;
+        color: #312E81 !important;
+        padding: 8px 12px !important;
+    }
+
+    /* Varian Khusus Tes Global / Kepondokan (Amber) */
+    .input-rp-group-amber {
+        border-color: #FDE68A !important;
+        background-color: #FFFFFF !important;
+    }
+    .input-rp-group-amber:focus-within {
+        border-color: #D97706 !important;
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15) !important;
+    }
+    .input-rp-group-amber .input-rp-addon {
+        background-color: #FEF3C7 !important;
+        color: #92400E !important;
+        border-right: 1px solid #FDE68A !important;
+        font-size: 12px !important;
+        padding: 0 12px !important;
+    }
+    .input-rp-group-amber .input-rp-control {
+        font-size: 14px !important;
+        font-weight: 900 !important;
+        color: #78350F !important;
+        padding: 8px 12px !important;
+    }
 </style>
 
 <body class="bg-gray-100 flex h-screen overflow-hidden text-[#2F2522] font-sans antialiased">
@@ -277,9 +413,9 @@ include __DIR__ . '/includes/head.php';
                                     <span class="text-[10px] text-teal-700 font-bold">Seleksi Masuk</span>
                                 </div>
                                 <label class="block text-xs font-extrabold text-teal-950 mb-1.5">Tarif Biaya Tes SMP IT</label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-teal-800 font-black text-xs">Rp</span>
-                                    <input type="text" id="inputBiayaSmp" name="biaya_tes_smp" value="<?= number_format($biaya_tes_smp, 0, '', '.') ?>" class="w-full pl-9 pr-3 py-2 border border-teal-300 rounded-xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 text-sm font-black text-teal-950 bg-white format-rupiah" required>
+                                <div class="input-rp-group input-rp-group-teal">
+                                    <span class="input-rp-addon">Rp</span>
+                                    <input type="text" id="inputBiayaSmp" name="biaya_tes_smp" value="<?= number_format($biaya_tes_smp, 0, '', '.') ?>" class="input-rp-control format-rupiah" required>
                                 </div>
                             </div>
                             <p class="text-[10px] text-teal-700/80 mt-2 font-medium">
@@ -297,9 +433,9 @@ include __DIR__ . '/includes/head.php';
                                     <span class="text-[10px] text-indigo-700 font-bold">Seleksi Masuk</span>
                                 </div>
                                 <label class="block text-xs font-extrabold text-indigo-950 mb-1.5">Tarif Biaya Tes SMA IT</label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-800 font-black text-xs">Rp</span>
-                                    <input type="text" id="inputBiayaSma" name="biaya_tes_sma" value="<?= number_format($biaya_tes_sma, 0, '', '.') ?>" class="w-full pl-9 pr-3 py-2 border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm font-black text-indigo-950 bg-white format-rupiah" required>
+                                <div class="input-rp-group input-rp-group-indigo">
+                                    <span class="input-rp-addon">Rp</span>
+                                    <input type="text" id="inputBiayaSma" name="biaya_tes_sma" value="<?= number_format($biaya_tes_sma, 0, '', '.') ?>" class="input-rp-control format-rupiah" required>
                                 </div>
                             </div>
                             <p class="text-[10px] text-indigo-700/80 mt-2 font-medium">
@@ -317,9 +453,9 @@ include __DIR__ . '/includes/head.php';
                                     <span class="text-[10px] text-amber-700 font-bold">Tarif Standar</span>
                                 </div>
                                 <label class="block text-xs font-extrabold text-amber-950 mb-1.5">Tarif Standar / Kepondokan</label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-800 font-black text-xs">Rp</span>
-                                    <input type="text" id="inputBiayaDef" name="biaya_tes_pendaftaran" value="<?= number_format($biaya_tes_def, 0, '', '.') ?>" class="w-full pl-9 pr-3 py-2 border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 text-sm font-black text-amber-950 bg-white format-rupiah" required>
+                                <div class="input-rp-group input-rp-group-amber">
+                                    <span class="input-rp-addon">Rp</span>
+                                    <input type="text" id="inputBiayaDef" name="biaya_tes_pendaftaran" value="<?= number_format($biaya_tes_def, 0, '', '.') ?>" class="input-rp-control format-rupiah" required>
                                 </div>
                             </div>
                             <p class="text-[10px] text-amber-700/80 mt-2 font-medium">
@@ -388,36 +524,36 @@ include __DIR__ . '/includes/head.php';
                                         <!-- 1. Uang Pangkal -->
                                         <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
                                             <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Uang Pangkal / Pembangunan</label>
-                                            <div class="relative">
-                                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400 font-bold text-[11px]">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="pangkal" name="biaya[<?= $bp['id'] ?>][uang_pangkal]" value="<?= number_format($bp['uang_pangkal'], 0, '', '.') ?>" class="w-full pl-8 pr-2.5 py-1.5 border border-gray-200 rounded-lg focus:border-brand-primary text-xs font-bold text-gray-800 bg-white format-rupiah calc-trigger">
+                                            <div class="input-rp-group">
+                                                <span class="input-rp-addon">Rp</span>
+                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="pangkal" name="biaya[<?= $bp['id'] ?>][uang_pangkal]" value="<?= number_format($bp['uang_pangkal'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
                                             </div>
                                         </div>
 
                                         <!-- 2. Seragam & Asrama -->
                                         <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
                                             <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Seragam &amp; Asrama</label>
-                                            <div class="relative">
-                                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400 font-bold text-[11px]">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="seragam" name="biaya[<?= $bp['id'] ?>][seragam]" value="<?= number_format($bp['seragam'], 0, '', '.') ?>" class="w-full pl-8 pr-2.5 py-1.5 border border-gray-200 rounded-lg focus:border-brand-primary text-xs font-bold text-gray-800 bg-white format-rupiah calc-trigger">
+                                            <div class="input-rp-group">
+                                                <span class="input-rp-addon">Rp</span>
+                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="seragam" name="biaya[<?= $bp['id'] ?>][seragam]" value="<?= number_format($bp['seragam'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
                                             </div>
                                         </div>
 
                                         <!-- 3. Kegiatan per Semester -->
                                         <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
                                             <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Kegiatan per Semester</label>
-                                            <div class="relative">
-                                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400 font-bold text-[11px]">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="kegiatan" name="biaya[<?= $bp['id'] ?>][kegiatan]" value="<?= number_format($bp['kegiatan'], 0, '', '.') ?>" class="w-full pl-8 pr-2.5 py-1.5 border border-gray-200 rounded-lg focus:border-brand-primary text-xs font-bold text-gray-800 bg-white format-rupiah calc-trigger">
+                                            <div class="input-rp-group">
+                                                <span class="input-rp-addon">Rp</span>
+                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="kegiatan" name="biaya[<?= $bp['id'] ?>][kegiatan]" value="<?= number_format($bp['kegiatan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
                                             </div>
                                         </div>
 
                                         <!-- 4. SPP Bulanan (Highlight Emerald) -->
                                         <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
                                             <label class="block text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider mb-1">SPP Bulanan (Makan+Laundry)</label>
-                                            <div class="relative">
-                                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-emerald-700 font-bold text-[11px]">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="spp" name="biaya[<?= $bp['id'] ?>][spp_bulanan]" value="<?= number_format($bp['spp_bulanan'], 0, '', '.') ?>" class="w-full pl-8 pr-2.5 py-1.5 border border-emerald-300 rounded-lg focus:border-emerald-600 text-xs font-black text-emerald-950 bg-white format-rupiah calc-trigger">
+                                            <div class="input-rp-group input-rp-group-emerald">
+                                                <span class="input-rp-addon">Rp</span>
+                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="spp" name="biaya[<?= $bp['id'] ?>][spp_bulanan]" value="<?= number_format($bp['spp_bulanan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
                                             </div>
                                         </div>
 
