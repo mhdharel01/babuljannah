@@ -266,42 +266,169 @@ require_once 'includes/header.php';
     </div>
 </section>
 
-<!-- Galeri Prestasi Section -->
-<section id="prestasi" class="py-20 bg-accent border-t border-gray-150 scroll-mt-24">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+<!-- Galeri Prestasi Section (UI-UX Pro Max) -->
+<?php
+if (!function_exists('get_public_prestasi_meta')) {
+    function get_public_prestasi_meta($kategori) {
+        switch ((string)$kategori) {
+            case 'Keagamaan':
+                return [
+                    'icon' => 'fa-solid fa-book-quran',
+                    'badge' => 'bg-emerald-600/95 text-white border-emerald-400/40',
+                    'label' => 'Keagamaan & Tahfidz'
+                ];
+            case 'Akademik':
+                return [
+                    'icon' => 'fa-solid fa-graduation-cap',
+                    'badge' => 'bg-blue-600/95 text-white border-blue-400/40',
+                    'label' => 'Akademik & Sains'
+                ];
+            case 'Seni & Bahasa':
+                return [
+                    'icon' => 'fa-solid fa-paintbrush',
+                    'badge' => 'bg-purple-600/95 text-white border-purple-400/40',
+                    'label' => 'Seni & Bahasa'
+                ];
+            case 'Olahraga / Fisik':
+                return [
+                    'icon' => 'fa-solid fa-medal',
+                    'badge' => 'bg-orange-600/95 text-white border-orange-400/40',
+                    'label' => 'Olahraga & Fisik'
+                ];
+            default:
+                return [
+                    'icon' => 'fa-solid fa-award',
+                    'badge' => 'bg-amber-600/95 text-white border-amber-400/40',
+                    'label' => 'Penghargaan Lainnya'
+                ];
+        }
+    }
+}
+?>
+<section id="prestasi" class="py-20 bg-accent border-t border-gray-150 scroll-mt-24 relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 relative z-10">
         <div class="text-center space-y-4 max-w-2xl mx-auto">
-            <span class="text-secondary font-bold text-sm uppercase tracking-wider block">Pencapaian Santri</span>
+            <span class="text-secondary font-extrabold text-xs uppercase tracking-widest block bg-secondary/10 px-3.5 py-1 rounded-full w-max mx-auto border border-secondary/20">
+                <i class="fa-solid fa-star text-amber-500 mr-1.5"></i> Pencapaian Santri Babul Jannah
+            </span>
             <h2 class="text-3xl md:text-4xl font-extrabold text-primary flex items-center justify-center">
-                <i class="fa-solid fa-trophy text-secondary mr-3 text-3xl"></i> Galeri Prestasi
+                <i class="fa-solid fa-trophy text-secondary mr-3 text-3xl"></i> Galeri Prestasi Santri
             </h2>
-            <p class="text-sm text-gray-650">
-                Deretan pencapaian membanggakan yang diraih oleh para santri Babul Jannah di berbagai bidang kejuaraan.
+            <p class="text-sm text-gray-650 leading-relaxed">
+                Deretan pencapaian membanggakan yang diraih oleh para santri Babul Jannah di berbagai ajang kejuaraan tingkat kota, provinsi, hingga nasional.
             </p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <?php if (empty($prestasi_list)): ?>
-                <div class="col-span-full text-center py-10 text-gray-400 text-sm">
-                    Belum ada data prestasi yang diunggah.
+                <div class="col-span-full bg-white rounded-3xl p-12 text-center text-gray-400 border border-gray-200 shadow-xs">
+                    <i class="fa-solid fa-trophy text-5xl mb-3 block opacity-30 text-secondary"></i>
+                    <h4 class="text-sm font-bold text-gray-700">Belum Ada Data Prestasi</h4>
+                    <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">Dokumentasi kejuaraan dan piagam santri akan segera diunggah.</p>
                 </div>
             <?php else: ?>
                 <?php foreach ($prestasi_list as $p): ?>
-                <?php $p_img = !empty($p['gambar']) ? get_storage_url('prestasi', $p['gambar'], 'assets/images/smp.webp') : 'assets/images/smp.webp'; ?>
-                <div class="group relative overflow-hidden rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300">
-                    <div class="h-56 bg-gray-200 relative">
-                        <img src="<?= $p_img ?>" alt="<?= htmlspecialchars($p['nama'] ?? 'Prestasi') ?>" class="w-full h-full object-cover group-hover:scale-110 transition duration-700" onerror="this.src='assets/images/smp.webp'">
-                        <div class="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/40 to-transparent"></div>
-                        <div class="absolute bottom-5 left-5 right-5">
-                            <span class="bg-secondary text-white text-[10px] font-extrabold px-3 py-1 rounded-lg uppercase tracking-wider shadow-sm"><?= htmlspecialchars($p['kategori']) ?></span>
-                            <h5 class="text-white font-bold text-sm mt-2.5 leading-snug"><?= htmlspecialchars($p['nama']) ?></h5>
+                <?php 
+                    $p_img = !empty($p['gambar']) ? get_storage_url('prestasi', $p['gambar'], 'assets/images/smp.webp') : 'assets/images/smp.webp'; 
+                    $p_meta = get_public_prestasi_meta($p['kategori'] ?? 'Lainnya');
+                ?>
+                <div class="group relative overflow-hidden rounded-3xl bg-white border border-gray-200/90 shadow-sm hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1.5 cursor-pointer flex flex-col justify-between"
+                     onclick="openPublicPrestasiLightbox('<?= $p_img ?>', '<?= htmlspecialchars(addslashes($p['nama'] ?? 'Prestasi')) ?>', '<?= htmlspecialchars(addslashes($p['kategori'] ?? 'Lainnya')) ?>')">
+                    
+                    <!-- Image Container -->
+                    <div class="aspect-[4/3] w-full bg-gray-100 relative overflow-hidden">
+                        <img src="<?= $p_img ?>" alt="<?= htmlspecialchars($p['nama'] ?? 'Prestasi') ?>" 
+                             class="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700" 
+                             onerror="this.src='assets/images/smp.webp'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/30 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                        
+                        <!-- Top Category Pill Badge -->
+                        <div class="absolute top-3.5 left-3.5 z-10">
+                            <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-sm border backdrop-blur-xs <?= $p_meta['badge'] ?>">
+                                <i class="<?= $p_meta['icon'] ?> mr-1.5 text-[9px]"></i>
+                                <?= htmlspecialchars($p['kategori'] ?? 'Lainnya') ?>
+                            </span>
+                        </div>
+
+                        <!-- Zoom Indicator Overlay on Hover -->
+                        <div class="absolute top-3.5 right-3.5 z-10 w-7 h-7 rounded-full bg-black/40 backdrop-blur-xs text-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-sm">
+                            <i class="fa-solid fa-expand text-[10px]"></i>
+                        </div>
+
+                        <!-- Card Bottom Info Overlay -->
+                        <div class="absolute bottom-3 left-4 right-4 z-10 text-white">
+                            <h3 class="font-extrabold text-sm leading-snug line-clamp-2 drop-shadow-sm group-hover:text-amber-200 transition-colors">
+                                <?= htmlspecialchars($p['nama'] ?? '') ?>
+                            </h3>
+                            <div class="flex items-center space-x-1.5 text-[10px] text-white/80 font-medium mt-1">
+                                <i class="fa-regular fa-calendar-check text-[9px]"></i>
+                                <span><?= !empty($p['created_at']) ? date('M Y', strtotime($p['created_at'])) : 'Prestasi Terpilih' ?></span>
+                            </div>
                         </div>
                     </div>
+
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
     </div>
 </section>
+
+<!-- Public Prestasi Lightbox Modal (UI-UX Pro Max) -->
+<div id="public-prestasi-lightbox" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-4 sm:p-6 transition-all duration-300" onclick="closePublicPrestasiLightbox()">
+    <div class="relative max-w-3xl max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/20 animate-in fade-in zoom-in-95 duration-200" onclick="event.stopPropagation()">
+        <!-- Close Button -->
+        <button type="button" onclick="closePublicPrestasiLightbox()" class="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition shadow-lg focus:outline-none">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+
+        <!-- Lightbox Image Viewport -->
+        <div class="bg-gray-950 flex items-center justify-center max-h-[72vh] overflow-hidden">
+            <img id="public-lightbox-img" src="" alt="Prestasi Santri" class="max-h-[72vh] w-auto max-w-full object-contain">
+        </div>
+
+        <!-- Lightbox Caption Footer -->
+        <div class="p-4 sm:p-5 bg-white border-t border-gray-150 flex items-center justify-between gap-4">
+            <div class="space-y-1 min-w-0">
+                <span id="public-lightbox-category" class="inline-flex items-center text-[10px] font-extrabold text-secondary bg-secondary/10 px-2.5 py-0.5 rounded-md uppercase tracking-wider"></span>
+                <h4 id="public-lightbox-title" class="font-extrabold text-primary text-sm sm:text-base leading-snug"></h4>
+            </div>
+            <button type="button" onclick="closePublicPrestasiLightbox()" class="flex-shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2 rounded-xl text-xs transition">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openPublicPrestasiLightbox(src, title, category) {
+        const modal = document.getElementById('public-prestasi-lightbox');
+        const img = document.getElementById('public-lightbox-img');
+        const titleEl = document.getElementById('public-lightbox-title');
+        const catEl = document.getElementById('public-lightbox-category');
+        if (modal && img) {
+            img.src = src;
+            if (titleEl) titleEl.textContent = title || '';
+            if (catEl) catEl.textContent = category || 'Prestasi';
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+    }
+
+    function closePublicPrestasiLightbox() {
+        const modal = document.getElementById('public-prestasi-lightbox');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closePublicPrestasiLightbox();
+        }
+    });
+</script>
 <!-- Jenjang Pendidikan Hub Section -->
 <section id="program" class="py-20 bg-white border-t border-gray-150">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
