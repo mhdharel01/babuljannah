@@ -652,6 +652,14 @@ include __DIR__ . '/includes/head.php';
                         <form action="gelombang.php" method="POST" id="formKuota" class="space-y-3.5">
                             <input type="hidden" name="action" value="save_kuota">
 
+                            <!-- Info Penegasan: Display Tetap -->
+                            <div class="p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-[11px] text-amber-900 flex items-start space-x-2">
+                                <i class="fa-solid fa-shield-halved text-amber-600 mt-0.5 text-xs flex-shrink-0"></i>
+                                <div class="leading-relaxed">
+                                    <strong>Display Informasi Resmi (Tetap):</strong> Angka kuota ini hanya sebagai informasi daya tampung yang ditampilkan di website dan <u>TIDAK AKAN BERKURANG</u> saat ada santri yang mendaftar.
+                                </div>
+                            </div>
+
                             <!-- Input Kuota SMP IT & SMA IT -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 
