@@ -454,7 +454,7 @@ include __DIR__ . '/includes/head.php';
                                         </div>
                                     </div>
                                 <?php else: ?>
-                                    <div class="h-36 bg-gradient-to-br from-brand-primary via-[#744E43] to-brand-deep relative overflow-hidden flex items-center justify-center">
+                                    <div class="h-36 bg-gradient-to-br from-brand-primary via-[#744E43] to-brand-deep relative overflow-hidden flex items-center justify-center" style="background: linear-gradient(135deg, #5C3E35 0%, #744E43 50%, #4A3029 100%) !important;">
                                         <div class="absolute -right-4 -bottom-4 text-white opacity-10 text-8xl font-black">
                                             <i class="<?= htmlspecialchars($e['ikon']) ?>"></i>
                                         </div>

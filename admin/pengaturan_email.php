@@ -291,7 +291,7 @@ include __DIR__ . '/includes/head.php';
                 
                 <!-- Stat 1: Status Gateway -->
                 <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
-                    <div class="w-10 h-10 rounded-xl <?= !empty($cur_settings['mail_enabled']) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200' ?> flex items-center justify-center text-lg flex-shrink-0">
+                    <div class="w-10 h-10 rounded-xl <?= !empty($cur_settings['mail_enabled']) ? 'kpi-box-green' : 'kpi-box-rose' ?> flex items-center justify-center text-lg flex-shrink-0" style="<?= !empty($cur_settings['mail_enabled']) ? 'background-color: #ECFDF5; color: #047857; border: 1px solid #A7F3D0;' : 'background-color: #FFF1F2; color: #BE123C; border: 1px solid #FECDD3;' ?>">
                         <i class="fa-solid fa-power-off"></i>
                     </div>
                     <div class="min-w-0">
@@ -307,7 +307,7 @@ include __DIR__ . '/includes/head.php';
 
                 <!-- Stat 2: Email Pengirim (From) -->
                 <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
-                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center text-lg flex-shrink-0">
+                    <div class="w-10 h-10 rounded-xl kpi-box-blue flex items-center justify-center text-lg flex-shrink-0" style="background-color: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;">
                         <i class="fa-solid fa-at"></i>
                     </div>
                     <div class="min-w-0">
@@ -320,7 +320,7 @@ include __DIR__ . '/includes/head.php';
 
                 <!-- Stat 3: Panitia Penerima -->
                 <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
-                    <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center text-lg flex-shrink-0">
+                    <div class="w-10 h-10 rounded-xl kpi-box-amber flex items-center justify-center text-lg flex-shrink-0" style="background-color: #FFFBEB; color: #B45309; border: 1px solid #FDE68A;">
                         <i class="fa-solid fa-users"></i>
                     </div>
                     <div class="min-w-0">
@@ -334,7 +334,7 @@ include __DIR__ . '/includes/head.php';
 
                 <!-- Stat 4: Total Log Pengiriman -->
                 <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex items-center space-x-3.5">
-                    <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center text-lg flex-shrink-0">
+                    <div class="w-10 h-10 rounded-xl kpi-box-purple flex items-center justify-center text-lg flex-shrink-0" style="background-color: #FAF5FF; color: #7E22CE; border: 1px solid #E9D5FF;">
                         <i class="fa-solid fa-clock-rotate-left"></i>
                     </div>
                     <div class="min-w-0">
@@ -354,7 +354,7 @@ include __DIR__ . '/includes/head.php';
             <div class="bg-white rounded-3xl border border-gray-200/90 shadow-xs overflow-hidden">
                 
                 <!-- Card Header -->
-                <div class="bg-gradient-to-r from-brand-deep to-brand-primary text-white p-5 sm:p-6 flex items-center justify-between">
+                <div class="card-header-brand p-5 sm:p-6 flex items-center justify-between" style="background: linear-gradient(135deg, #4A3029 0%, #5C3E35 100%) !important; color: #FFFFFF !important;">
                     <div class="space-y-1">
                         <h2 class="text-base sm:text-lg font-black flex items-center">
                             <i class="fa-solid fa-sliders mr-2.5 text-secondary"></i> Konfigurasi Pengirim &amp; Penerima Notifikasi
@@ -608,7 +608,7 @@ include __DIR__ . '/includes/head.php';
     <div id="modal-test-email" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
         <div class="bg-white rounded-3xl shadow-2xl border border-gray-200/90 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
-            <div class="bg-gradient-to-r from-brand-deep to-brand-primary text-white p-5 flex items-center justify-between">
+            <div class="card-header-brand p-5 flex items-center justify-between" style="background: linear-gradient(135deg, #4A3029 0%, #5C3E35 100%) !important; color: #FFFFFF !important;">
                 <div class="flex items-center space-x-3">
                     <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-sm">
                         <i class="fa-solid fa-paper-plane text-white"></i>
@@ -667,7 +667,7 @@ include __DIR__ . '/includes/head.php';
         <div class="bg-white rounded-3xl shadow-2xl border border-gray-200/90 w-full max-w-2xl my-auto relative max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
             <!-- Modal Header -->
-            <div class="bg-gradient-to-r from-brand-deep to-brand-primary text-white p-5 flex items-center justify-between flex-shrink-0">
+            <div class="card-header-brand p-5 flex items-center justify-between flex-shrink-0" style="background: linear-gradient(135deg, #4A3029 0%, #5C3E35 100%) !important; color: #FFFFFF !important;">
                 <div class="flex items-center space-x-3">
                     <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-sm">
                         <i class="fa-solid fa-palette text-secondary"></i>

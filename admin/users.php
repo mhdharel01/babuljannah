@@ -27,40 +27,50 @@ if (!function_exists('get_role_badge_meta')) {
             case 'superadmin':
                 return [
                     'label' => 'Super Admin',
-                    'class' => 'bg-rose-50 text-rose-800 border-rose-200/80',
-                    'bg_avatar' => 'bg-gradient-to-br from-rose-500 to-rose-700 text-white',
+                    'class' => 'badge-superadmin',
+                    'bg_avatar' => 'avatar-superadmin',
+                    'avatar_style' => 'background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%) !important; color: #FFFFFF !important;',
+                    'badge_style' => 'background-color: #FFF1F2 !important; color: #9F1239 !important; border: 1px solid #FECDD3 !important;',
                     'icon' => 'fa-solid fa-shield-halved',
                     'desc' => 'Akses penuh seluruh sistem, pengaturan email & pengguna'
                 ];
             case 'bendahara':
                 return [
                     'label' => 'Bendahara Keuangan',
-                    'class' => 'bg-blue-50 text-blue-800 border-blue-200/80',
-                    'bg_avatar' => 'bg-gradient-to-br from-blue-500 to-blue-700 text-white',
+                    'class' => 'badge-bendahara',
+                    'bg_avatar' => 'avatar-bendahara',
+                    'avatar_style' => 'background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important; color: #FFFFFF !important;',
+                    'badge_style' => 'background-color: #EFF6FF !important; color: #1E40AF !important; border: 1px solid #BFDBFE !important;',
                     'icon' => 'fa-solid fa-file-invoice-dollar',
                     'desc' => 'Master biaya pendaftaran, validasi bayar & laporan keuangan'
                 ];
             case 'humas':
                 return [
                     'label' => 'Humas & Konten',
-                    'class' => 'bg-amber-50 text-amber-800 border-amber-200/80',
-                    'bg_avatar' => 'bg-gradient-to-br from-amber-500 to-amber-700 text-white',
+                    'class' => 'badge-humas',
+                    'bg_avatar' => 'avatar-humas',
+                    'avatar_style' => 'background: linear-gradient(135deg, #D97706 0%, #B45309 100%) !important; color: #FFFFFF !important;',
+                    'badge_style' => 'background-color: #FFFBEB !important; color: #92400E !important; border: 1px solid #FDE68A !important;',
                     'icon' => 'fa-solid fa-bullhorn',
                     'desc' => 'Kelola berita, sarana fasilitas, ekskul, dan galeri prestasi'
                 ];
             case 'yayasan':
                 return [
                     'label' => 'Pimpinan Yayasan',
-                    'class' => 'bg-purple-50 text-purple-800 border-purple-200/80',
-                    'bg_avatar' => 'bg-gradient-to-br from-purple-500 to-purple-700 text-white',
+                    'class' => 'badge-yayasan',
+                    'bg_avatar' => 'avatar-yayasan',
+                    'avatar_style' => 'background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%) !important; color: #FFFFFF !important;',
+                    'badge_style' => 'background-color: #F5F3FF !important; color: #5B21B6 !important; border: 1px solid #DDD6FE !important;',
                     'icon' => 'fa-solid fa-landmark',
                     'desc' => 'Monitoring eksekutif read-only rekap santri & keuangan'
                 ];
             default: // panitia
                 return [
                     'label' => 'Panitia Admisi',
-                    'class' => 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
-                    'bg_avatar' => 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white',
+                    'class' => 'badge-panitia',
+                    'bg_avatar' => 'avatar-panitia',
+                    'avatar_style' => 'background: linear-gradient(135deg, #059669 0%, #047857 100%) !important; color: #FFFFFF !important;',
+                    'badge_style' => 'background-color: #ECFDF5 !important; color: #065F46 !important; border: 1px solid #A7F3D0 !important;',
                     'icon' => 'fa-solid fa-users',
                     'desc' => 'Input santri baru, kelola pendaftar, dan scan QR kartu ujian'
                 ];
@@ -476,7 +486,7 @@ include __DIR__ . '/includes/head.php';
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-center space-x-3.5 min-w-0">
                                 <!-- Avatar -->
-                                <div class="w-12 h-12 rounded-2xl <?= $role_meta['bg_avatar'] ?> flex items-center justify-center font-black text-sm shadow-xs flex-shrink-0">
+                                <div class="w-12 h-12 rounded-2xl <?= $role_meta['bg_avatar'] ?> flex items-center justify-center font-black text-sm shadow-xs flex-shrink-0" style="<?= $role_meta['avatar_style'] ?>">
                                     <?= htmlspecialchars($initials) ?>
                                 </div>
                                 
@@ -497,7 +507,7 @@ include __DIR__ . '/includes/head.php';
                             </div>
 
                             <!-- Role Pill Badge -->
-                            <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-1 rounded-xl border shadow-2xs whitespace-nowrap <?= $role_meta['class'] ?>">
+                            <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-1 rounded-xl border shadow-2xs whitespace-nowrap <?= $role_meta['class'] ?>" style="<?= $role_meta['badge_style'] ?>">
                                 <i class="<?= $role_meta['icon'] ?> mr-1.5 text-[9px]"></i>
                                 <?= htmlspecialchars($role_meta['label']) ?>
                             </span>
@@ -565,7 +575,7 @@ include __DIR__ . '/includes/head.php';
             <!-- ======================================================== -->
             <div id="view-table-container" class="hidden bg-white rounded-3xl border border-gray-200/80 shadow-xs overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-xs">
+                    <table class="w-full min-w-[650px] text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-gray-50/80 border-b border-gray-200 text-gray-500 uppercase tracking-wider text-[10px] font-bold">
                                 <th class="py-3 px-4 w-12 text-center">ID</th>
@@ -589,7 +599,7 @@ include __DIR__ . '/includes/head.php';
                                     <td class="py-3 px-4 text-center font-black text-gray-400">#<?= $u['id'] ?></td>
                                     <td class="py-3 px-4">
                                         <div class="flex items-center space-x-3">
-                                            <div class="w-8 h-8 rounded-xl <?= $role_meta['bg_avatar'] ?> flex items-center justify-center font-black text-xs flex-shrink-0">
+                                            <div class="w-8 h-8 rounded-xl <?= $role_meta['bg_avatar'] ?> flex items-center justify-center font-black text-xs flex-shrink-0" style="<?= $role_meta['avatar_style'] ?>">
                                                 <?= htmlspecialchars($initials) ?>
                                             </div>
                                             <div>
@@ -604,7 +614,7 @@ include __DIR__ . '/includes/head.php';
                                         </div>
                                     </td>
                                     <td class="py-3 px-4 whitespace-nowrap">
-                                        <span class="inline-flex items-center text-[10px] font-extrabold px-2 py-0.5 rounded-md border <?= $role_meta['class'] ?>">
+                                        <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-1 rounded-md border <?= $role_meta['class'] ?>" style="<?= $role_meta['badge_style'] ?>">
                                             <i class="<?= $role_meta['icon'] ?> mr-1 text-[9px]"></i>
                                             <?= htmlspecialchars($role_meta['label']) ?>
                                         </span>
@@ -664,7 +674,7 @@ include __DIR__ . '/includes/head.php';
         <div class="bg-white rounded-3xl shadow-2xl border border-gray-200/90 w-full max-w-lg my-auto relative max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
             <!-- Modal Header -->
-            <div class="flex items-center justify-between border-b border-gray-100 px-6 sm:px-8 py-4.5 flex-shrink-0 bg-gray-50/70">
+            <div class="card-header-brand flex items-center justify-between border-b border-[#3A241E] px-6 sm:px-8 py-4.5 flex-shrink-0" style="background: linear-gradient(135deg, #4A3029 0%, #5C3E35 100%) !important; color: #FFFFFF !important;">
                 <div class="flex items-center space-x-3">
                     <div class="w-9 h-9 rounded-xl bg-brand-primary text-white flex items-center justify-center text-sm shadow-xs">
                         <i class="fa-solid fa-user-gear"></i>

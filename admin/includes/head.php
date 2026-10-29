@@ -40,6 +40,99 @@
         .border-brand-primary { border-color: #5C3E35 !important; }
         .border-brand-secondary { border-color: #A17A6F !important; }
 
+        /* Card Header & Brand Gradients */
+        .card-header-brand, .bg-gradient-brand {
+            background: linear-gradient(135deg, #4A3029 0%, #5C3E35 100%) !important;
+            color: #FFFFFF !important;
+        }
+
+        /* Role Avatar Styles (Guaranteed Vibrant Colors) */
+        .avatar-superadmin {
+            background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%) !important;
+            color: #FFFFFF !important;
+        }
+        .avatar-panitia {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+            color: #FFFFFF !important;
+        }
+        .avatar-bendahara {
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+            color: #FFFFFF !important;
+        }
+        .avatar-humas {
+            background: linear-gradient(135deg, #D97706 0%, #B45309 100%) !important;
+            color: #FFFFFF !important;
+        }
+        .avatar-yayasan {
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%) !important;
+            color: #FFFFFF !important;
+        }
+
+        /* Role Badges */
+        .badge-superadmin {
+            background-color: #FFF1F2 !important;
+            color: #9F1239 !important;
+            border: 1px solid #FECDD3 !important;
+        }
+        .badge-panitia {
+            background-color: #ECFDF5 !important;
+            color: #065F46 !important;
+            border: 1px solid #A7F3D0 !important;
+        }
+        .badge-bendahara {
+            background-color: #EFF6FF !important;
+            color: #1E40AF !important;
+            border: 1px solid #BFDBFE !important;
+        }
+        .badge-humas {
+            background-color: #FFFBEB !important;
+            color: #92400E !important;
+            border: 1px solid #FDE68A !important;
+        }
+        .badge-yayasan {
+            background-color: #F5F3FF !important;
+            color: #5B21B6 !important;
+            border: 1px solid #DDD6FE !important;
+        }
+
+        /* Extended Color Fallbacks (Never transparent or purged) */
+        .bg-rose-50 { background-color: #FFF1F2 !important; }
+        .bg-rose-100 { background-color: #FFE4E6 !important; }
+        .text-rose-600 { color: #E11D48 !important; }
+        .text-rose-700 { color: #BE123C !important; }
+        .text-rose-800 { color: #9F1239 !important; }
+        .border-rose-200 { border-color: #FECDD3 !important; }
+        .border-rose-300 { border-color: #FDA4AF !important; }
+
+        .bg-purple-50 { background-color: #FAF5FF !important; }
+        .bg-purple-100 { background-color: #F3E8FF !important; }
+        .text-purple-600 { color: #9333EA !important; }
+        .text-purple-700 { color: #7E22CE !important; }
+        .text-purple-800 { color: #6B21A8 !important; }
+        .border-purple-200 { border-color: #E9D5FF !important; }
+
+        .bg-blue-50 { background-color: #EFF6FF !important; }
+        .bg-blue-100 { background-color: #DBEAFE !important; }
+        .text-blue-600 { color: #2563EB !important; }
+        .text-blue-700 { color: #1D4ED8 !important; }
+        .text-blue-800 { color: #1E40AF !important; }
+        .border-blue-200 { border-color: #BFDBFE !important; }
+
+        .bg-emerald-50 { background-color: #ECFDF5 !important; }
+        .bg-emerald-100 { background-color: #D1FAE5 !important; }
+        .text-emerald-600 { color: #059669 !important; }
+        .text-emerald-700 { color: #047857 !important; }
+        .text-emerald-800 { color: #065F46 !important; }
+        .border-emerald-200 { border-color: #A7F3D0 !important; }
+        .border-emerald-300 { border-color: #6EE7B7 !important; }
+
+        .bg-amber-50 { background-color: #FFFBEB !important; }
+        .bg-amber-100 { background-color: #FEF3C7 !important; }
+        .text-amber-600 { color: #D97706 !important; }
+        .text-amber-700 { color: #B45309 !important; }
+        .text-amber-800 { color: #92400E !important; }
+        .border-amber-200 { border-color: #FDE68A !important; }
+
         /* Solid Action Button Fallbacks (Resistant to Tailwind purge/browser cache) */
         .btn-export-excel {
             background-color: #15803D !important;
