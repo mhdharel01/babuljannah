@@ -731,11 +731,12 @@ include __DIR__ . '/includes/head.php';
                             </div>
 
                             <!-- Submit Button -->
-                            <div class="flex items-center justify-between pt-1">
-                                <span class="text-[10px] text-gray-500">
-                                    <i class="fa-solid fa-cloud-arrow-up text-emerald-600 mr-1"></i> Tersimpan di sistem
+                            <div class="flex items-center justify-between pt-2 border-t border-gray-200/70 mt-2">
+                                <span class="text-[10px] text-gray-500 flex items-center">
+                                    <i class="fa-solid fa-cloud-arrow-up text-emerald-600 mr-1.5 text-xs"></i> 
+                                    <span>Tersimpan di sistem</span>
                                 </span>
-                                <button type="submit" class="bg-rose-700 hover:bg-rose-800 text-white font-extrabold py-2 px-4 rounded-xl text-xs shadow-xs hover:shadow transition flex items-center space-x-1.5 transform active:scale-95">
+                                <button type="submit" class="bg-brand-primary hover:bg-brand-deep text-white font-extrabold py-2.5 px-5 rounded-xl text-xs shadow-md hover:shadow-lg transition flex items-center space-x-2 transform active:scale-95 cursor-pointer">
                                     <i class="fa-solid fa-floppy-disk text-xs"></i>
                                     <span>Simpan Pengaturan Kuota</span>
                                 </button>

@@ -108,6 +108,9 @@
         /* Extended Color Fallbacks (Never transparent or purged) */
         .bg-rose-50 { background-color: #FFF1F2 !important; }
         .bg-rose-100 { background-color: #FFE4E6 !important; }
+        .bg-rose-600 { background-color: #E11D48 !important; }
+        .bg-rose-700 { background-color: #BE123C !important; }
+        .bg-rose-800 { background-color: #9F1239 !important; }
         .text-rose-600 { color: #E11D48 !important; }
         .text-rose-700 { color: #BE123C !important; }
         .text-rose-800 { color: #9F1239 !important; }
@@ -116,6 +119,8 @@
 
         .bg-purple-50 { background-color: #FAF5FF !important; }
         .bg-purple-100 { background-color: #F3E8FF !important; }
+        .bg-purple-600 { background-color: #9333EA !important; }
+        .bg-purple-700 { background-color: #7E22CE !important; }
         .text-purple-600 { color: #9333EA !important; }
         .text-purple-700 { color: #7E22CE !important; }
         .text-purple-800 { color: #6B21A8 !important; }
@@ -123,6 +128,9 @@
 
         .bg-blue-50 { background-color: #EFF6FF !important; }
         .bg-blue-100 { background-color: #DBEAFE !important; }
+        .bg-blue-600 { background-color: #2563EB !important; }
+        .bg-blue-700 { background-color: #1D4ED8 !important; }
+        .bg-blue-800 { background-color: #1E40AF !important; }
         .text-blue-600 { color: #2563EB !important; }
         .text-blue-700 { color: #1D4ED8 !important; }
         .text-blue-800 { color: #1E40AF !important; }
@@ -130,6 +138,9 @@
 
         .bg-emerald-50 { background-color: #ECFDF5 !important; }
         .bg-emerald-100 { background-color: #D1FAE5 !important; }
+        .bg-emerald-600 { background-color: #059669 !important; }
+        .bg-emerald-700 { background-color: #047857 !important; }
+        .bg-emerald-800 { background-color: #065F46 !important; }
         .text-emerald-600 { color: #059669 !important; }
         .text-emerald-700 { color: #047857 !important; }
         .text-emerald-800 { color: #065F46 !important; }
@@ -138,6 +149,8 @@
 
         .bg-amber-50 { background-color: #FFFBEB !important; }
         .bg-amber-100 { background-color: #FEF3C7 !important; }
+        .bg-amber-500 { background-color: #F59E0B !important; }
+        .bg-amber-600 { background-color: #D97706 !important; }
         .text-amber-600 { color: #D97706 !important; }
         .text-amber-700 { color: #B45309 !important; }
         .text-amber-800 { color: #92400E !important; }
