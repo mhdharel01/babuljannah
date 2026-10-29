@@ -70,7 +70,7 @@ try {
     @$db->exec("INSERT IGNORE INTO pengaturan_sistem (kunci, nilai) VALUES ('biaya_tes_smp', '300000')");
     @$db->exec("INSERT IGNORE INTO pengaturan_sistem (kunci, nilai) VALUES ('biaya_tes_sma', '350000')");
 
-    // Pastikan tabel master_biaya_pendidikan ada
+    // Pastikan tabel master_biaya_pendidikan ada & otomatis terisi 2 jenjang resmi (SMP IT & SMA IT)
     @$db->exec("CREATE TABLE IF NOT EXISTS master_biaya_pendidikan (
         id INT AUTO_INCREMENT PRIMARY KEY,
         kode_jenjang VARCHAR(20) NOT NULL UNIQUE,
@@ -82,6 +82,11 @@ try {
         spp_bulanan INT DEFAULT 0,
         catatan VARCHAR(255) DEFAULT NULL
     )");
+    @$db->exec("INSERT IGNORE INTO master_biaya_pendidikan (id, kode_jenjang, jenjang, deskripsi, uang_pangkal, seragam, kegiatan, spp_bulanan, catatan) VALUES
+    (1, 'smp', 'SMP IT', 'Rincian estimasi biaya pendidikan awal santri baru tingkat SMP IT Babul Jannah.', 1750000, 3350000, 450000, 1200000, 'Biaya formulir & ujian seleksi sebesar Rp 300.000 dibayarkan saat pendaftaran awal.'),
+    (2, 'sma', 'SMA IT', 'Rincian estimasi biaya pendidikan awal santri baru tingkat SMA IT Babul Jannah.', 1750000, 3800000, 450000, 1200000, 'Biaya formulir & ujian seleksi sebesar Rp 350.000 dibayarkan saat pendaftaran awal.')");
+    // Otomatis bersihkan jenjang takhasus/lainnya jika masih ada di database hosting agar seragam hanya 2 jenjang
+    @$db->exec("DELETE FROM master_biaya_pendidikan WHERE kode_jenjang NOT IN ('smp', 'sma')");
 
     // Pastikan tabel ekskul ada
     @$db->exec("CREATE TABLE IF NOT EXISTS ekskul (
