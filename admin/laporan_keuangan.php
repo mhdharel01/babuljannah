@@ -587,7 +587,7 @@ $pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
                         <i class="fa-solid fa-file-invoice-dollar"></i>
                         <span>Rekapitulasi Keuangan PSB</span>
                         <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span class="text-emerald-700 normal-case font-bold">T.A 2026/2027</span>
+                        <span class="text-emerald-700 normal-case font-bold">T.A <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?></span>
                     </div>
                     <p class="text-xs text-gray-500 mt-0.5">
                         Rekonsiliasi mutasi Bank BSI, penerimaan tunai panitia, dan rincian biaya pendaftaran santri baru.
@@ -1361,7 +1361,7 @@ $pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
     <!-- Kop Surat Resmi Khusus Cetak -->
     <div class="print-header">
         <h2 style="font-size: 16pt; font-weight: bold; margin: 0; text-transform: uppercase;">PONDOK PESANTREN MODERN BABUL JANNAH</h2>
-        <p style="font-size: 10pt; margin: 3px 0 0 0;">Panitia Penerimaan Santri Baru (PSB) Tahun Ajaran 2026/2027</p>
+        <p style="font-size: 10pt; margin: 3px 0 0 0;">Panitia Penerimaan Santri Baru (PSB) Tahun Ajaran <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?></p>
         <p style="font-size: 9pt; margin: 2px 0 0 0; color: #555;">Rekening Resmi: Bank Syariah Indonesia (BSI) 7300750308 a.n. Pesantren Babul Jannah</p>
         <h3 style="font-size: 12pt; font-weight: bold; margin: 12px 0 0 0; text-decoration: underline;">LAPORAN REKAPITULASI KEUANGAN PSB</h3>
         <p style="font-size: 8pt; margin: 3px 0 0 0;">Dicetak pada: <?= date('d F Y, H:i') ?> WIB oleh <?= htmlspecialchars($_SESSION['admin_nama'] ?? 'Bendahara') ?></p>

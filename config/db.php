@@ -222,6 +222,46 @@ if (!function_exists('get_biaya_tes')) {
     }
 }
 
+// Helper untuk mengambil Tahun Ajaran aktif secara dinamis berdasarkan konfigurasi Gelombang
+if (!function_exists('get_tahun_ajaran_aktif')) {
+    function get_tahun_ajaran_aktif() {
+        global $db;
+        static $cached_ta = null;
+        if ($cached_ta !== null) {
+            return $cached_ta;
+        }
+        try {
+            if ($db) {
+                // Prioritas 1: Gelombang berstatus 'aktif' dengan urutan prioritas:
+                // 1) Sedang buka saat ini (hari ini di antara tgl_buka s.d tgl_tutup 23:59:59)
+                // 2) Akan dibuka terdekat (hari ini < tgl_buka)
+                // 3) Gelombang aktif lainnya
+                $stmt = $db->query("SELECT tahun_ajaran FROM gelombang WHERE status = 'aktif' AND tahun_ajaran IS NOT NULL AND TRIM(tahun_ajaran) != '' ORDER BY CASE WHEN NOW() BETWEEN tgl_buka AND CONCAT(tgl_tutup, ' 23:59:59') THEN 1 WHEN NOW() < tgl_buka THEN 2 ELSE 3 END ASC, tgl_buka ASC LIMIT 1");
+                $val = $stmt ? $stmt->fetchColumn() : null;
+                if (!empty($val)) {
+                    $cached_ta = trim($val);
+                    return $cached_ta;
+                }
+
+                // Prioritas 2: Jika seluruh gelombang ditutup / nonaktif, ambil tahun ajaran dari gelombang terakhir
+                $stmt = $db->query("SELECT tahun_ajaran FROM gelombang WHERE tahun_ajaran IS NOT NULL AND TRIM(tahun_ajaran) != '' ORDER BY id DESC LIMIT 1");
+                $val = $stmt ? $stmt->fetchColumn() : null;
+                if (!empty($val)) {
+                    $cached_ta = trim($val);
+                    return $cached_ta;
+                }
+            }
+        } catch (Throwable $e) {
+            // Abaikan error DB dan gunakan fallback
+        }
+
+        // Fallback dinamis jika database belum diset
+        $curr_year = (int)date('Y');
+        $cached_ta = $curr_year . '/' . ($curr_year + 1);
+        return $cached_ta;
+    }
+}
+
 // Helper untuk upload gambar, auto-resize, konversi WebP, dan simpan ke Cloud Storage (Supabase)
 function upload_and_convert_to_webp($file_input_name, $upload_dir, $prefix = 'img', $max_width = 1600)
 {

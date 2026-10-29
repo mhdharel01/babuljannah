@@ -419,7 +419,7 @@ include __DIR__ . '/includes/head.php';
                         <i class="fa-solid fa-money-bill-wave"></i>
                         <span>Master Konfigurasi Biaya</span>
                         <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span class="text-emerald-700 normal-case font-bold">PSB T.A 2026/2027</span>
+                        <span class="text-emerald-700 normal-case font-bold">PSB T.A <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?></span>
                     </div>
                     <p class="text-xs text-gray-500 mt-0.5">
                         Kelola biaya tes seleksi awal, uang pangkal, seragam, kegiatan, serta SPP bulanan santri baru.

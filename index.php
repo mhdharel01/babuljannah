@@ -45,6 +45,9 @@ try {
 } catch (Throwable $e) {
     $master_biaya_list = [];
 }
+
+// Ambil tahun ajaran aktif secara dinamis dari gelombang
+$tahun_ajaran_aktif = get_tahun_ajaran_aktif();
 ?>
 
 <!-- Hero Premium Split Layout Section -->
@@ -60,7 +63,7 @@ try {
             <div class="lg:col-span-6 space-y-6 text-left" data-aos="fade-right" data-aos-duration="1000">
                 <span class="inline-flex items-center space-x-2 bg-secondary/15 border border-secondary/20 text-primary text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-xl mb-2">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Penerimaan Santri Baru T.A 2026/2027</span>
+                    <span>Penerimaan Santri Baru T.A <?= htmlspecialchars($tahun_ajaran_aktif) ?></span>
                 </span>
                 
                 <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary leading-tight font-sans">
@@ -115,9 +118,9 @@ try {
                             <div class="flex items-center space-x-3 text-xs font-semibold <?= $status_waktu === 'upcoming' ? 'text-amber-600' : 'text-gray-600' ?>">
                                 <i class="fa-solid <?= $status_waktu === 'upcoming' ? 'fa-clock' : 'fa-bullhorn text-secondary' ?> text-base flex-shrink-0"></i>
                                 <?php if ($status_waktu === 'upcoming'): ?>
-                                    <span>Akan dibuka: <strong class="text-amber-700"><?= $gel['nama_gelombang'] ?></strong> pada <?= format_tanggal($gel['tgl_buka']) ?></span>
+                                    <span>Akan dibuka: <strong class="text-amber-700"><?= htmlspecialchars($gel['nama_gelombang']) ?><?= !empty($gel['tahun_ajaran']) ? ' (T.A ' . htmlspecialchars($gel['tahun_ajaran']) . ')' : '' ?></strong> pada <?= format_tanggal($gel['tgl_buka']) ?></span>
                                 <?php else: ?>
-                                    <span>Sedang dibuka: <strong class="text-primary"><?= $gel['nama_gelombang'] ?></strong> s/d <?= format_tanggal($gel['tgl_tutup']) ?></span>
+                                    <span>Sedang dibuka: <strong class="text-primary"><?= htmlspecialchars($gel['nama_gelombang']) ?><?= !empty($gel['tahun_ajaran']) ? ' (T.A ' . htmlspecialchars($gel['tahun_ajaran']) . ')' : '' ?></strong> s/d <?= format_tanggal($gel['tgl_tutup']) ?></span>
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
@@ -593,7 +596,7 @@ try {
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div class="text-center space-y-4 max-w-2xl mx-auto">
             <span class="text-secondary font-bold text-xs uppercase tracking-wider block">Transparansi Biaya</span>
-            <h2 class="text-3xl md:text-4xl font-extrabold text-primary font-sans">Rincian Biaya Pendidikan T.A 2026/2027</h2>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-primary font-sans">Rincian Biaya Pendidikan T.A <?= htmlspecialchars($tahun_ajaran_aktif) ?></h2>
             <p class="text-xs text-gray-600">
                 Berikut adalah estimasi rincian biaya awal masuk dan bulanan untuk masing-masing jenjang pendidikan di Pondok Pesantren Babul Jannah.
             </p>

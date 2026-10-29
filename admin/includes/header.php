@@ -88,7 +88,7 @@ $admin_role = $_SESSION['admin_role'] ?? 'panitia';
         <!-- Live System Status Badge (Hanya tampil di layar 2XL agar tidak menghimpit judul di layar laptop) -->
         <div class="hidden 2xl:flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>PSB T.A 2026/2027 Online</span>
+            <span>PSB T.A <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?> Online</span>
         </div>
 
         <!-- Date Pill (Tampil di layar XL+) -->

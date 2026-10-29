@@ -461,7 +461,7 @@ include __DIR__ . '/includes/head.php';
                         <i class="fa-solid fa-calendar-week"></i>
                         <span>Pengaturan Gelombang &amp; Jadwal Seleksi</span>
                         <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span class="text-emerald-700 normal-case font-bold">PSB T.A 2026/2027</span>
+                        <span class="text-emerald-700 normal-case font-bold">PSB T.A <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?></span>
                     </div>
                     <p class="text-xs text-gray-500 mt-0.5">
                         Kelola tanggal pembukaan, penutupan formulir, tanggal ujian seleksi, dan pengumuman hasil kelulusan.
@@ -670,7 +670,7 @@ include __DIR__ . '/includes/head.php';
                                             <i class="fa-solid fa-school text-teal-700 mr-1 text-xs"></i> Kuota SMP IT
                                         </label>
                                         <span class="text-[9px] bg-teal-50 text-teal-800 font-black px-1.5 py-0.5 rounded border border-teal-200">
-                                            T.A 2026/2027
+                                            T.A <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?>
                                         </span>
                                     </div>
                                     <div class="flex items-center space-x-1.5">
@@ -689,7 +689,7 @@ include __DIR__ . '/includes/head.php';
                                             <i class="fa-solid fa-graduation-cap text-indigo-700 mr-1 text-xs"></i> Kuota SMA IT
                                         </label>
                                         <span class="text-[9px] bg-indigo-50 text-indigo-800 font-black px-1.5 py-0.5 rounded border border-indigo-200">
-                                            T.A 2026/2027
+                                            T.A <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?>
                                         </span>
                                     </div>
                                     <div class="flex items-center space-x-1.5">

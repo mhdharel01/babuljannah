@@ -399,9 +399,9 @@ require_once 'includes/header.php';
         <div class="mb-16">
             <div class="text-center space-y-2 mb-10">
                 <span class="text-secondary font-bold text-[10px] uppercase tracking-widest block">Biaya Masuk</span>
-                <h3 class="text-2xl font-extrabold text-primary font-sans">Rincian Investasi Pendidikan T.A 2026/2027
+                <h3 class="text-2xl font-extrabold text-primary font-sans">Rincian Investasi Pendidikan T.A <?= htmlspecialchars(get_tahun_ajaran_aktif()) ?>
                 </h3>
-                </div>
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
                 <?php foreach ($master_biaya_list as $mb):
