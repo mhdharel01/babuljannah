@@ -710,7 +710,9 @@ document.addEventListener('keydown', (e) => {
                     <?php if (!empty($e['gambar'])): ?>
                     <?php $img_path = (strpos($e['gambar'], 'olahraga.webp') !== false) ? 'assets/images/' . $e['gambar'] : get_storage_url('ekskul', $e['gambar']); ?>
                     <div class="h-44 overflow-hidden bg-gray-100 relative">
-                        <img src="<?= htmlspecialchars($img_path) ?>" alt="<?= htmlspecialchars($e['nama']) ?>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <img src="<?= htmlspecialchars($img_path) ?>" alt="<?= htmlspecialchars($e['nama']) ?>" 
+                             onerror="this.onerror=null; this.src='assets/images/placeholder.webp';"
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                     </div>
                     <?php else: ?>
                     <div class="h-44 bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-accent text-5xl relative overflow-hidden">
