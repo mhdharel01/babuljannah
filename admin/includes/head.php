@@ -11,7 +11,12 @@
     <!-- Font Awesome (Local) -->
     <link rel="stylesheet" href="../assets/vendor/fontawesome/css/all.min.css">
     
-    <!-- Fonts -->
+    <!-- Google Fonts Official CDN: Plus Jakarta Sans & Playfair Display (Guaranteed High-Fidelity & Cross-Browser Consistency) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
+    <!-- Fonts (Local Fallback) -->
     <link rel="stylesheet" href="../assets/css/fonts.css">
     
     <!-- Custom Style Sheet (Includes Local Fonts: Plus Jakarta Sans) -->
@@ -30,6 +35,11 @@
             --brand-accent: #FBF9F6;
             --brand-cream: #F3EDE6;
             --brand-dark: #2F2522;
+        }
+
+        /* High-Fidelity Font Enforcement across All Devices */
+        body, input, textarea, select, button, optgroup {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
         }
         .bg-brand-primary { background-color: #5C3E35 !important; }
         .bg-brand-dark { background-color: #3E2723 !important; }
@@ -237,6 +247,15 @@
         aside nav::-webkit-scrollbar-thumb:hover,
         aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background-color: rgba(255, 255, 255, 0.4) !important;
+        }
+        /* Form Controls Consistency & Focus Glow */
+        input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="password"], textarea, select {
+            border-radius: 0.75rem !important;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, input[type="date"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
+            border-color: #5C3E35 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(92, 62, 53, 0.15) !important;
         }
     </style>
 

@@ -1,5 +1,5 @@
 <?php
-// admin/master_biaya.php
+// admin/master_biaya.php - UI-UX Pro Max Master Biaya & Full CRUD Jenjang
 require_once __DIR__ . '/../config/db.php';
 
 // Cek autentikasi admin
@@ -17,65 +17,165 @@ if (!in_array($admin_role, ['superadmin', 'bendahara'])) {
 $success_msg = '';
 $error_msg = '';
 
-// Handle Form Submit
+// =========================================================================
+// 1. TANGANI AKSI CRUD (TAMBAH JENJANG, HAPUS JENJANG, UPDATE BANK, UPDATE BIAYA)
+// =========================================================================
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
-    try {
-        $db->beginTransaction();
+    $action = $_POST['action'] ?? 'update_all';
 
-        // 1. Update Biaya Tes Seleksi per Jenjang & Global
-        $biaya_smp_post = (int)str_replace('.', '', $_POST['biaya_tes_smp'] ?? '300000');
-        $biaya_sma_post = (int)str_replace('.', '', $_POST['biaya_tes_sma'] ?? '350000');
-        $biaya_def_post = (int)str_replace('.', '', $_POST['biaya_tes_pendaftaran'] ?? '350000');
-
-        $stmt_set = $db->prepare("INSERT INTO pengaturan_sistem (kunci, nilai) VALUES (?, ?) ON DUPLICATE KEY UPDATE nilai = ?");
+    // AKSI A: Tambah Jenjang / Paket Biaya Baru
+    if ($action === 'add_jenjang') {
+        $nama_jenjang = trim(sanitize($_POST['nama_jenjang'] ?? ''));
+        $kode_jenjang = strtolower(trim(preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['kode_jenjang'] ?? '')));
         
-        $stmt_set->execute(['biaya_tes_smp', $biaya_smp_post, $biaya_smp_post]);
-        $stmt_set->execute(['biaya_tes_sma', $biaya_sma_post, $biaya_sma_post]);
-        $stmt_set->execute(['biaya_tes_pendaftaran', $biaya_def_post, $biaya_def_post]);
-
-        // 2. Update Rincian Biaya Pendidikan (SMP IT & SMA IT)
-        if (isset($_POST['biaya']) && is_array($_POST['biaya'])) {
-            $stmt_update = $db->prepare("
-                UPDATE master_biaya_pendidikan 
-                SET deskripsi = ?, uang_pangkal = ?, seragam = ?, kegiatan = ?, spp_bulanan = ?, catatan = ? 
-                WHERE id = ?
-            ");
-
-            foreach ($_POST['biaya'] as $id => $data) {
-                $uang_pangkal = (int)str_replace('.', '', $data['uang_pangkal'] ?? 0);
-                $seragam = (int)str_replace('.', '', $data['seragam'] ?? 0);
-                $kegiatan = (int)str_replace('.', '', $data['kegiatan'] ?? 0);
-                $spp_bulanan = (int)str_replace('.', '', $data['spp_bulanan'] ?? 0);
-                $deskripsi = trim($data['deskripsi'] ?? '');
-                $catatan = trim($data['catatan'] ?? '');
-
-                $stmt_update->execute([
-                    $deskripsi,
-                    $uang_pangkal,
-                    $seragam,
-                    $kegiatan,
-                    $spp_bulanan,
-                    $catatan,
-                    $id
-                ]);
-            }
+        if (empty($kode_jenjang) && !empty($nama_jenjang)) {
+            $kode_jenjang = strtolower(trim(preg_replace('/[^a-zA-Z0-9]/', '_', $nama_jenjang)));
         }
 
-        $db->commit();
-        $success_msg = "Pengaturan Master Biaya Pendidikan & Formulir berhasil diperbarui!";
-    } catch (Throwable $e) {
-        $db->rollBack();
-        $error_msg = "Gagal menyimpan perubahan: " . $e->getMessage();
+        if (empty($nama_jenjang) || empty($kode_jenjang)) {
+            $error_msg = "Nama jenjang dan kode jenjang tidak boleh kosong!";
+        } else {
+            // Cek apakah kode sudah digunakan
+            $stmt_check = $db->prepare("SELECT COUNT(*) FROM master_biaya_pendidikan WHERE kode_jenjang = ?");
+            $stmt_check->execute([$kode_jenjang]);
+            if ($stmt_check->fetchColumn() > 0) {
+                $error_msg = "Kode jenjang '{$kode_jenjang}' sudah terdaftar. Gunakan kode lain.";
+            } else {
+                $uang_pangkal = (int)str_replace('.', '', $_POST['uang_pangkal'] ?? 0);
+                $seragam = (int)str_replace('.', '', $_POST['seragam'] ?? 0);
+                $kegiatan = (int)str_replace('.', '', $_POST['kegiatan'] ?? 0);
+                $spp_bulanan = (int)str_replace('.', '', $_POST['spp_bulanan'] ?? 0);
+                $deskripsi = trim(sanitize($_POST['deskripsi'] ?? ''));
+                $catatan = trim(sanitize($_POST['catatan'] ?? ''));
+
+                try {
+                    $stmt_ins = $db->prepare("
+                        INSERT INTO master_biaya_pendidikan 
+                        (kode_jenjang, jenjang, deskripsi, uang_pangkal, seragam, kegiatan, spp_bulanan, catatan) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt_ins->execute([
+                        $kode_jenjang,
+                        $nama_jenjang,
+                        $deskripsi,
+                        $uang_pangkal,
+                        $seragam,
+                        $kegiatan,
+                        $spp_bulanan,
+                        $catatan
+                    ]);
+                    $success_msg = "Jenjang '{$nama_jenjang}' berhasil ditambahkan ke Master Biaya!";
+                } catch (Throwable $e) {
+                    $error_msg = "Gagal menambahkan jenjang: " . $e->getMessage();
+                }
+            }
+        }
+    }
+
+    // AKSI B: Hapus Jenjang
+    elseif ($action === 'delete_jenjang') {
+        $del_id = (int)($_POST['id'] ?? 0);
+        if ($del_id > 0) {
+            try {
+                // Cek nama jenjang sebelum dihapus
+                $stmt_cek = $db->prepare("SELECT jenjang FROM master_biaya_pendidikan WHERE id = ?");
+                $stmt_cek->execute([$del_id]);
+                $jenjang_nama = $stmt_cek->fetchColumn();
+
+                $stmt_del = $db->prepare("DELETE FROM master_biaya_pendidikan WHERE id = ?");
+                $stmt_del->execute([$del_id]);
+                $success_msg = "Jenjang '" . ($jenjang_nama ?: "ID #$del_id") . "' berhasil dihapus dari Master Biaya!";
+            } catch (Throwable $e) {
+                $error_msg = "Gagal menghapus jenjang: " . $e->getMessage();
+            }
+        }
+    }
+
+    // AKSI C: Update Informasi Rekening Bank
+    elseif ($action === 'update_bank') {
+        $bank_nama = trim(sanitize($_POST['bank_nama'] ?? 'Bank Syariah Indonesia (BSI)'));
+        $bank_rekening = trim(sanitize($_POST['bank_rekening'] ?? '7300750308'));
+        $bank_atas_nama = trim(sanitize($_POST['bank_atas_nama'] ?? 'Pesantren Babul Jannah'));
+
+        try {
+            $stmt_set = $db->prepare("INSERT INTO pengaturan_sistem (kunci, nilai) VALUES (?, ?) ON DUPLICATE KEY UPDATE nilai = ?");
+            $stmt_set->execute(['bank_nama', $bank_nama, $bank_nama]);
+            $stmt_set->execute(['bank_rekening', $bank_rekening, $bank_rekening]);
+            $stmt_set->execute(['bank_atas_nama', $bank_atas_nama, $bank_atas_nama]);
+            $success_msg = "Informasi rekening bank pembayaran resmi berhasil diperbarui!";
+        } catch (Throwable $e) {
+            $error_msg = "Gagal menyimpan data rekening: " . $e->getMessage();
+        }
+    }
+
+    // AKSI D: Simpan Semua Pengaturan Biaya (Update All)
+    elseif ($action === 'update_all') {
+        try {
+            $db->beginTransaction();
+
+            // 1. Update Biaya Tes Seleksi per Jenjang & Global
+            $biaya_smp_post = (int)str_replace('.', '', $_POST['biaya_tes_smp'] ?? '300000');
+            $biaya_sma_post = (int)str_replace('.', '', $_POST['biaya_tes_sma'] ?? '350000');
+            $biaya_def_post = (int)str_replace('.', '', $_POST['biaya_tes_pendaftaran'] ?? '350000');
+
+            $stmt_set = $db->prepare("INSERT INTO pengaturan_sistem (kunci, nilai) VALUES (?, ?) ON DUPLICATE KEY UPDATE nilai = ?");
+            $stmt_set->execute(['biaya_tes_smp', $biaya_smp_post, $biaya_smp_post]);
+            $stmt_set->execute(['biaya_tes_sma', $biaya_sma_post, $biaya_sma_post]);
+            $stmt_set->execute(['biaya_tes_pendaftaran', $biaya_def_post, $biaya_def_post]);
+
+            // 2. Update Rincian Biaya Pendidikan untuk Setiap Jenjang yang Terdaftar
+            if (isset($_POST['biaya']) && is_array($_POST['biaya'])) {
+                $stmt_update = $db->prepare("
+                    UPDATE master_biaya_pendidikan 
+                    SET deskripsi = ?, uang_pangkal = ?, seragam = ?, kegiatan = ?, spp_bulanan = ?, catatan = ? 
+                    WHERE id = ?
+                ");
+
+                foreach ($_POST['biaya'] as $id => $data) {
+                    $uang_pangkal = (int)str_replace('.', '', $data['uang_pangkal'] ?? 0);
+                    $seragam = (int)str_replace('.', '', $data['seragam'] ?? 0);
+                    $kegiatan = (int)str_replace('.', '', $data['kegiatan'] ?? 0);
+                    $spp_bulanan = (int)str_replace('.', '', $data['spp_bulanan'] ?? 0);
+                    $deskripsi = trim(sanitize($data['deskripsi'] ?? ''));
+                    $catatan = trim(sanitize($data['catatan'] ?? ''));
+
+                    $stmt_update->execute([
+                        $deskripsi,
+                        $uang_pangkal,
+                        $seragam,
+                        $kegiatan,
+                        $spp_bulanan,
+                        $catatan,
+                        (int)$id
+                    ]);
+                }
+            }
+
+            $db->commit();
+            $success_msg = "Pengaturan Master Biaya Pendidikan & Formulir berhasil diperbarui!";
+        } catch (Throwable $e) {
+            $db->rollBack();
+            $error_msg = "Gagal menyimpan perubahan: " . $e->getMessage();
+        }
     }
 }
 
-// Ambil Biaya Formulir & Tes Seleksi dari database
+// =========================================================================
+// 2. AMBIL DATA TERBARU DARI DATABASE
+// =========================================================================
+
+// Biaya Formulir & Tes Masuk
 $biaya_tes_smp = 300000;
 $biaya_tes_sma = 350000;
 $biaya_tes_def = 350000;
 
+// Info Rekening Bank Pembayaran Resmi
+$bank_nama = 'Bank Syariah Indonesia (BSI)';
+$bank_rekening = '7300750308';
+$bank_atas_nama = 'Pesantren Babul Jannah';
+
 try {
-    $stmt_b = $db->query("SELECT kunci, nilai FROM pengaturan_sistem WHERE kunci IN ('biaya_tes_smp', 'biaya_tes_sma', 'biaya_tes_pendaftaran')");
+    $stmt_b = $db->query("SELECT kunci, nilai FROM pengaturan_sistem WHERE kunci IN ('biaya_tes_smp', 'biaya_tes_sma', 'biaya_tes_pendaftaran', 'bank_nama', 'bank_rekening', 'bank_atas_nama')");
     while ($rb = $stmt_b->fetch(PDO::FETCH_ASSOC)) {
         if ($rb['kunci'] === 'biaya_tes_smp' && is_numeric($rb['nilai'])) {
             $biaya_tes_smp = (int)$rb['nilai'];
@@ -83,13 +183,19 @@ try {
             $biaya_tes_sma = (int)$rb['nilai'];
         } elseif ($rb['kunci'] === 'biaya_tes_pendaftaran' && is_numeric($rb['nilai'])) {
             $biaya_tes_def = (int)$rb['nilai'];
+        } elseif ($rb['kunci'] === 'bank_nama' && !empty($rb['nilai'])) {
+            $bank_nama = $rb['nilai'];
+        } elseif ($rb['kunci'] === 'bank_rekening' && !empty($rb['nilai'])) {
+            $bank_rekening = $rb['nilai'];
+        } elseif ($rb['kunci'] === 'bank_atas_nama' && !empty($rb['nilai'])) {
+            $bank_atas_nama = $rb['nilai'];
         }
     }
 } catch (Throwable $e) {
-    // Gunakan fallback
+    // Fallback default
 }
 
-// Ambil Data Rincian Biaya (2 Kelompok: SMP IT & SMA IT)
+// Ambil Data Rincian Biaya (Semua Jenjang Dinamis)
 $biaya_pendidikan = [];
 try {
     $biaya_pendidikan = $db->query("SELECT * FROM master_biaya_pendidikan ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -322,17 +428,17 @@ include __DIR__ . '/includes/head.php';
 
                 <!-- Action Buttons & Quick Links -->
                 <div class="flex flex-wrap items-center gap-2">
-                    <!-- Bank BSI Account Badge -->
+                    <!-- Bank Account Badge (Clickable to Edit) -->
                     <div class="flex items-center space-x-2 bg-emerald-50/90 border border-emerald-300/80 px-3 py-1.5 rounded-xl text-xs text-emerald-900 shadow-2xs">
                         <div class="w-6 h-6 rounded-md bg-emerald-700 text-white flex items-center justify-center font-black text-[10px] shadow-xs">
-                            BSI
+                            <i class="fa-solid fa-building-columns text-[10px]"></i>
                         </div>
                         <div class="leading-tight">
-                            <span class="text-[9px] text-emerald-700 block font-bold uppercase tracking-wider">Rekening Resmi</span>
-                            <span class="font-mono font-black text-emerald-950 text-xs">7300750308</span>
+                            <span class="text-[9px] text-emerald-700 block font-bold uppercase tracking-wider"><?= htmlspecialchars($bank_nama) ?></span>
+                            <span class="font-mono font-black text-emerald-950 text-xs"><?= htmlspecialchars($bank_rekening) ?></span>
                         </div>
-                        <button type="button" onclick="navigator.clipboard.writeText('7300750308'); alert('Nomor rekening BSI 7300750308 berhasil disalin!');" class="p-1 text-emerald-700 hover:text-emerald-950 hover:bg-emerald-100 rounded-md transition" title="Salin No Rekening">
-                            <i class="fa-regular fa-copy text-xs"></i>
+                        <button type="button" onclick="openModalBank()" class="p-1 text-emerald-700 hover:text-emerald-950 hover:bg-emerald-100 rounded-md transition" title="Ubah Rekening Bank">
+                            <i class="fa-solid fa-pen-to-square text-xs"></i>
                         </button>
                     </div>
 
@@ -352,7 +458,7 @@ include __DIR__ . '/includes/head.php';
 
             <!-- Alerts -->
             <?php if ($success_msg): ?>
-                <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-3.5 rounded-2xl shadow-xs flex items-center justify-between">
+                <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-3.5 rounded-2xl shadow-xs flex items-center justify-between animate-in fade-in">
                     <div class="flex items-center space-x-2.5">
                         <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
                         <p class="font-bold text-xs"><?= htmlspecialchars($success_msg) ?></p>
@@ -362,7 +468,7 @@ include __DIR__ . '/includes/head.php';
             <?php endif; ?>
 
             <?php if ($error_msg): ?>
-                <div class="bg-rose-50 border border-rose-300 text-rose-800 p-3.5 rounded-2xl shadow-xs flex items-center justify-between">
+                <div class="bg-rose-50 border border-rose-300 text-rose-800 p-3.5 rounded-2xl shadow-xs flex items-center justify-between animate-in fade-in">
                     <div class="flex items-center space-x-2.5">
                         <i class="fa-solid fa-circle-exclamation text-rose-600 text-base"></i>
                         <p class="font-bold text-xs"><?= htmlspecialchars($error_msg) ?></p>
@@ -371,8 +477,9 @@ include __DIR__ . '/includes/head.php';
                 </div>
             <?php endif; ?>
 
-            <!-- Main Form -->
+            <!-- Main Form Update Semua Biaya -->
             <form id="formMasterBiaya" action="" method="POST" class="space-y-5">
+                <input type="hidden" name="action" value="update_all">
                 
                 <!-- ======================================================== -->
                 <!-- 2. BIAYA FORMULIR & TES SELEKSI (PER JENJANG & GLOBAL) -->
@@ -467,128 +574,166 @@ include __DIR__ . '/includes/head.php';
                 </div>
 
                 <!-- ======================================================== -->
-                <!-- 3. RINCIAN BIAYA DAFTAR ULANG & SPP (PER JENJANG) -->
+                <!-- 3. RINCIAN BIAYA DAFTAR ULANG & SPP (PER JENJANG) - FULL CRUD -->
                 <!-- ======================================================== -->
                 <div class="space-y-4">
-                    <div class="flex items-center space-x-2.5 px-1">
-                        <div class="w-7 h-7 rounded-lg bg-brand-primary text-white flex items-center justify-center text-xs shadow-2xs">
-                            <i class="fa-solid fa-list-check"></i>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-brand-primary text-white flex items-center justify-center text-xs shadow-2xs">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm sm:text-base font-extrabold text-gray-900">
+                                    Rincian Biaya Masuk Awal &amp; SPP Bulanan (Per Jenjang)
+                                </h3>
+                                <p class="text-[11px] text-gray-500">
+                                    Komponen biaya daftar ulang yang tampil di website publik saat santri dinyatakan lulus seleksi.
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 class="text-sm sm:text-base font-extrabold text-gray-900">
-                                Rincian Biaya Masuk Awal &amp; SPP Bulanan (Per Jenjang)
-                            </h3>
-                            <p class="text-[11px] text-gray-500">
-                                Komponen biaya daftar ulang yang tampil di website publik saat santri dinyatakan lulus seleksi.
-                            </p>
-                        </div>
+
+                        <!-- Tombol Tambah Jenjang Baru -->
+                        <button type="button" onclick="openModalTambahJenjang()" class="inline-flex items-center space-x-2 bg-brand-primary hover:bg-brand-deep text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-xs hover:shadow transition transform active:scale-95 self-start sm:self-auto">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            <span>Tambah Jenjang Biaya</span>
+                        </button>
                     </div>
 
-                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                        <?php foreach($biaya_pendidikan as $bp): 
-                            $is_smp = stripos($bp['jenjang'], 'SMP') !== false;
-                            $theme_border = $is_smp ? 'border-teal-200' : 'border-indigo-200';
-                            $theme_badge = $is_smp ? 'bg-teal-50 text-teal-800 border-teal-200' : 'bg-indigo-50 text-indigo-800 border-indigo-200';
-                            $theme_icon = $is_smp ? 'fa-school' : 'fa-graduation-cap';
-                            $total_estimasi = $bp['uang_pangkal'] + $bp['seragam'] + $bp['kegiatan'] + $bp['spp_bulanan'];
-                        ?>
-                        <div class="bg-white rounded-2xl border <?= $theme_border ?> shadow-xs p-5 flex flex-col justify-between space-y-4">
-                            
-                            <!-- Header Card Jenjang -->
-                            <div>
-                                <div class="flex items-center justify-between pb-3 border-b border-gray-100">
-                                    <div class="flex items-center space-x-2">
-                                        <span class="inline-flex items-center px-3 py-1 rounded-xl text-xs font-black <?= $theme_badge ?> border">
-                                            <i class="fa-solid <?= $theme_icon ?> mr-1.5 text-xs"></i>
+                    <?php if (empty($biaya_pendidikan)): ?>
+                        <div class="bg-white rounded-2xl border border-gray-200/80 p-8 text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl mb-3">
+                                <i class="fa-solid fa-circle-question"></i>
+                            </div>
+                            <h4 class="font-extrabold text-gray-900 text-sm">Belum Ada Rincian Biaya Jenjang</h4>
+                            <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">Klik tombol "+ Tambah Jenjang Biaya" di atas untuk menambahkan rincian biaya jenjang pertama Anda.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                            <?php foreach($biaya_pendidikan as $bp): 
+                                $is_smp = stripos($bp['jenjang'], 'SMP') !== false;
+                                $is_sma = stripos($bp['jenjang'], 'SMA') !== false;
+                                
+                                if ($is_smp) {
+                                    $theme_border = 'border-teal-200';
+                                    $theme_badge = 'bg-teal-50 text-teal-800 border-teal-200';
+                                    $theme_icon = 'fa-school';
+                                } elseif ($is_sma) {
+                                    $theme_border = 'border-indigo-200';
+                                    $theme_badge = 'bg-indigo-50 text-indigo-800 border-indigo-200';
+                                    $theme_icon = 'fa-graduation-cap';
+                                } else {
+                                    $theme_border = 'border-amber-200';
+                                    $theme_badge = 'bg-amber-50 text-amber-800 border-amber-200';
+                                    $theme_icon = 'fa-book-quran';
+                                }
+                                $total_estimasi = $bp['uang_pangkal'] + $bp['seragam'] + $bp['kegiatan'] + $bp['spp_bulanan'];
+                            ?>
+                            <div class="bg-white rounded-2xl border <?= $theme_border ?> shadow-xs p-5 flex flex-col justify-between space-y-4 relative group">
+                                
+                                <!-- Header Card Jenjang -->
+                                <div>
+                                    <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="inline-flex items-center px-3 py-1 rounded-xl text-xs font-black <?= $theme_badge ?> border">
+                                                <i class="fa-solid <?= $theme_icon ?> mr-1.5 text-xs"></i>
+                                                <?= htmlspecialchars($bp['jenjang']) ?>
+                                            </span>
+                                            <span class="text-[10px] text-gray-400 font-mono uppercase">ID: <?= $bp['id'] ?> (<?= htmlspecialchars($bp['kode_jenjang']) ?>)</span>
+                                        </div>
+
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/80">
+                                                <i class="fa-solid fa-check text-[9px] mr-1"></i> Aktif di Web
+                                            </span>
+                                            
+                                            <!-- Tombol Hapus Jenjang -->
+                                            <button type="button" onclick="confirmHapusJenjang(<?= $bp['id'] ?>, '<?= htmlspecialchars(addslashes($bp['jenjang'])) ?>')" class="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition" title="Hapus Jenjang Biaya Ini">
+                                                <i class="fa-solid fa-trash-can text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Form Fields Jenjang -->
+                                    <div class="mt-4 space-y-3.5">
+                                        
+                                        <!-- Deskripsi -->
+                                        <div>
+                                            <label class="block text-[11px] font-extrabold text-gray-700 mb-1">Deskripsi / Penjelasan Singkat</label>
+                                            <textarea name="biaya[<?= $bp['id'] ?>][deskripsi]" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary text-xs leading-relaxed text-gray-800 bg-gray-50/50"><?= htmlspecialchars($bp['deskripsi']) ?></textarea>
+                                        </div>
+
+                                        <!-- Grid 4 Komponen Biaya -->
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            
+                                            <!-- 1. Uang Pangkal -->
+                                            <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
+                                                <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Uang Pangkal / Pembangunan</label>
+                                                <div class="input-rp-group">
+                                                    <span class="input-rp-addon">Rp</span>
+                                                    <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="pangkal" name="biaya[<?= $bp['id'] ?>][uang_pangkal]" value="<?= number_format($bp['uang_pangkal'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
+                                                </div>
+                                            </div>
+
+                                            <!-- 2. Seragam & Asrama -->
+                                            <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
+                                                <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Seragam &amp; Asrama</label>
+                                                <div class="input-rp-group">
+                                                    <span class="input-rp-addon">Rp</span>
+                                                    <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="seragam" name="biaya[<?= $bp['id'] ?>][seragam]" value="<?= number_format($bp['seragam'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
+                                                </div>
+                                            </div>
+
+                                            <!-- 3. Kegiatan per Semester -->
+                                            <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
+                                                <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Kegiatan per Semester</label>
+                                                <div class="input-rp-group">
+                                                    <span class="input-rp-addon">Rp</span>
+                                                    <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="kegiatan" name="biaya[<?= $bp['id'] ?>][kegiatan]" value="<?= number_format($bp['kegiatan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
+                                                </div>
+                                            </div>
+
+                                            <!-- 4. SPP Bulanan (Highlight Emerald) -->
+                                            <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
+                                                <label class="block text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider mb-1">SPP Bulanan (Makan+Laundry)</label>
+                                                <div class="input-rp-group input-rp-group-emerald">
+                                                    <span class="input-rp-addon">Rp</span>
+                                                    <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="spp" name="biaya[<?= $bp['id'] ?>][spp_bulanan]" value="<?= number_format($bp['spp_bulanan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
+                                                </div>
+                                            </div>
+
+                                        </div>
+
+                                        <!-- Catatan Tambahan -->
+                                        <div>
+                                            <label class="block text-[11px] font-extrabold text-gray-700 mb-1">Catatan Tambahan (Ketentuan Cicilan, dll)</label>
+                                            <input type="text" name="biaya[<?= $bp['id'] ?>][catatan]" value="<?= htmlspecialchars($bp['catatan']) ?>" placeholder="Contoh: Biaya dapat dicicil 2 kali atau dibayar tunai." class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:border-brand-primary text-xs text-gray-800 bg-gray-50/50">
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                <!-- Live Estimasi Total Masuk Awal (Live Preview Widget) -->
+                                <div class="card-total-masuk p-4 rounded-xl flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[10px] font-extrabold uppercase tracking-wider block opacity-90">
+                                            <i class="fa-solid fa-calculator mr-1"></i> Estimasi Total Masuk Awal (Live)
+                                        </span>
+                                        <div class="text-xl sm:text-2xl font-black total-amount mt-0.5" id="totalPreview_<?= $bp['id'] ?>">
+                                            Rp <?= number_format($total_estimasi, 0, ',', '.') ?>
+                                        </div>
+                                        <span class="text-[10px] opacity-80 block">Pangkal + Seragam + Kegiatan + SPP Bulan ke-1</span>
+                                    </div>
+                                    <div class="text-right hidden sm:block">
+                                        <span class="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-lg">
                                             <?= htmlspecialchars($bp['jenjang']) ?>
                                         </span>
-                                        <span class="text-[10px] text-gray-400 font-mono uppercase">ID: <?= $bp['id'] ?> (<?= htmlspecialchars($bp['kode_jenjang']) ?>)</span>
                                     </div>
-                                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/80">
-                                        <i class="fa-solid fa-check text-[9px] mr-1"></i> Aktif di Web
-                                    </span>
                                 </div>
 
-                                <!-- Form Fields Jenjang -->
-                                <div class="mt-4 space-y-3.5">
-                                    
-                                    <!-- Deskripsi -->
-                                    <div>
-                                        <label class="block text-[11px] font-extrabold text-gray-700 mb-1">Deskripsi / Penjelasan Singkat</label>
-                                        <textarea name="biaya[<?= $bp['id'] ?>][deskripsi]" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary text-xs leading-relaxed text-gray-800 bg-gray-50/50"><?= htmlspecialchars($bp['deskripsi']) ?></textarea>
-                                    </div>
-
-                                    <!-- Grid 4 Komponen Biaya -->
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        
-                                        <!-- 1. Uang Pangkal -->
-                                        <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
-                                            <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Uang Pangkal / Pembangunan</label>
-                                            <div class="input-rp-group">
-                                                <span class="input-rp-addon">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="pangkal" name="biaya[<?= $bp['id'] ?>][uang_pangkal]" value="<?= number_format($bp['uang_pangkal'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
-                                            </div>
-                                        </div>
-
-                                        <!-- 2. Seragam & Asrama -->
-                                        <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
-                                            <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Seragam &amp; Asrama</label>
-                                            <div class="input-rp-group">
-                                                <span class="input-rp-addon">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="seragam" name="biaya[<?= $bp['id'] ?>][seragam]" value="<?= number_format($bp['seragam'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
-                                            </div>
-                                        </div>
-
-                                        <!-- 3. Kegiatan per Semester -->
-                                        <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
-                                            <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Kegiatan per Semester</label>
-                                            <div class="input-rp-group">
-                                                <span class="input-rp-addon">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="kegiatan" name="biaya[<?= $bp['id'] ?>][kegiatan]" value="<?= number_format($bp['kegiatan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
-                                            </div>
-                                        </div>
-
-                                        <!-- 4. SPP Bulanan (Highlight Emerald) -->
-                                        <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
-                                            <label class="block text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider mb-1">SPP Bulanan (Makan+Laundry)</label>
-                                            <div class="input-rp-group input-rp-group-emerald">
-                                                <span class="input-rp-addon">Rp</span>
-                                                <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="spp" name="biaya[<?= $bp['id'] ?>][spp_bulanan]" value="<?= number_format($bp['spp_bulanan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
-                                            </div>
-                                        </div>
-
-                                    </div>
-
-                                    <!-- Catatan Tambahan -->
-                                    <div>
-                                        <label class="block text-[11px] font-extrabold text-gray-700 mb-1">Catatan Tambahan (Ketentuan Cicilan, dll)</label>
-                                        <input type="text" name="biaya[<?= $bp['id'] ?>][catatan]" value="<?= htmlspecialchars($bp['catatan']) ?>" placeholder="Contoh: Biaya dapat dicicil 2 kali atau dibayar tunai." class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:border-brand-primary text-xs text-gray-800 bg-gray-50/50">
-                                    </div>
-
-                                </div>
                             </div>
-
-                            <!-- Live Estimasi Total Masuk Awal (Live Preview Widget) -->
-                            <div class="card-total-masuk p-4 rounded-xl flex items-center justify-between">
-                                <div>
-                                    <span class="text-[10px] font-extrabold uppercase tracking-wider block opacity-90">
-                                        <i class="fa-solid fa-calculator mr-1"></i> Estimasi Total Masuk Awal (Live)
-                                    </span>
-                                    <div class="text-xl sm:text-2xl font-black total-amount mt-0.5" id="totalPreview_<?= $bp['id'] ?>">
-                                        Rp <?= number_format($total_estimasi, 0, ',', '.') ?>
-                                    </div>
-                                    <span class="text-[10px] opacity-80 block">Pangkal + Seragam + Kegiatan + SPP Bulan ke-1</span>
-                                </div>
-                                <div class="text-right hidden sm:block">
-                                    <span class="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-lg">
-                                        <?= htmlspecialchars($bp['jenjang']) ?>
-                                    </span>
-                                </div>
-                            </div>
-
+                            <?php endforeach; ?>
                         </div>
-                        <?php endforeach; ?>
-                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- ======================================================== -->
@@ -616,7 +761,170 @@ include __DIR__ . '/includes/head.php';
         </main>
     </div>
 
-    <!-- JavaScript: Rupiah Formatter & Realtime Calculator -->
+    <!-- ========================================================================= -->
+    <!-- MODAL 1: TAMBAH JENJANG / PAKET BIAYA BARU -->
+    <!-- ========================================================================= -->
+    <div id="modalTambahJenjang" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl border border-gray-200/90 w-full max-w-xl my-auto relative max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            <!-- Modal Header -->
+            <div class="card-header-brand flex items-center justify-between border-b border-[#3A241E] px-6 py-4.5 flex-shrink-0" style="background: linear-gradient(135deg, #4A3029 0%, #5C3E35 100%) !important; color: #FFFFFF !important;">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center text-sm shadow-xs">
+                        <i class="fa-solid fa-folder-plus"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-white">Tambah Jenjang Biaya Baru</h3>
+                        <p class="text-[11px] text-[#D4C3B8]">Tambahkan rincian paket biaya pendidikan baru ke dalam sistem.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeModalTambahJenjang()" class="text-white/70 hover:text-white p-1 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form action="" method="POST" class="p-6 overflow-y-auto space-y-4 custom-scrollbar text-xs">
+                <input type="hidden" name="action" value="add_jenjang">
+
+                <!-- Nama & Kode Jenjang -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block font-extrabold text-gray-700 mb-1">Nama Jenjang Pendidikan <span class="text-rose-500">*</span></label>
+                        <input type="text" name="nama_jenjang" required placeholder="Contoh: Program Khusus Takhasus" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-extrabold text-gray-700 mb-1">Kode Jenjang (Slug) <span class="text-rose-500">*</span></label>
+                        <input type="text" name="kode_jenjang" required placeholder="Contoh: takhasus" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-xs font-mono lowercase">
+                    </div>
+                </div>
+
+                <!-- Deskripsi -->
+                <div>
+                    <label class="block font-extrabold text-gray-700 mb-1">Deskripsi Singkat</label>
+                    <textarea name="deskripsi" rows="2" placeholder="Rincian estimasi biaya pendidikan awal santri baru..." class="w-full px-3.5 py-2 border border-gray-200 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-xs"></textarea>
+                </div>
+
+                <!-- 4 Komponen Biaya -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-extrabold text-gray-700 mb-1">Uang Pangkal / Pembangunan</label>
+                        <div class="input-rp-group">
+                            <span class="input-rp-addon">Rp</span>
+                            <input type="text" name="uang_pangkal" value="0" class="input-rp-control format-rupiah modal-calc" id="modalPangkal">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-extrabold text-gray-700 mb-1">Seragam &amp; Asrama</label>
+                        <div class="input-rp-group">
+                            <span class="input-rp-addon">Rp</span>
+                            <input type="text" name="seragam" value="0" class="input-rp-control format-rupiah modal-calc" id="modalSeragam">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-extrabold text-gray-700 mb-1">Kegiatan per Semester</label>
+                        <div class="input-rp-group">
+                            <span class="input-rp-addon">Rp</span>
+                            <input type="text" name="kegiatan" value="0" class="input-rp-control format-rupiah modal-calc" id="modalKegiatan">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-extrabold text-emerald-800 mb-1">SPP Bulanan (Makan+Laundry)</label>
+                        <div class="input-rp-group input-rp-group-emerald">
+                            <span class="input-rp-addon">Rp</span>
+                            <input type="text" name="spp_bulanan" value="0" class="input-rp-control format-rupiah modal-calc" id="modalSpp">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Catatan Tambahan -->
+                <div>
+                    <label class="block font-extrabold text-gray-700 mb-1">Catatan Tambahan</label>
+                    <input type="text" name="catatan" placeholder="Contoh: Biaya dapat dicicil 2 kali atau dibayar tunai." class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-xs">
+                </div>
+
+                <!-- Preview Total Masuk Awal -->
+                <div class="card-total-masuk p-3.5 rounded-xl flex items-center justify-between">
+                    <div>
+                        <span class="text-[9px] font-extrabold uppercase tracking-wider block opacity-90">Estimasi Total Masuk Awal (Preview)</span>
+                        <div class="text-lg font-black total-amount mt-0.5" id="modalTotalPreview">Rp 0</div>
+                    </div>
+                    <span class="text-[10px] opacity-80">Pangkal + Seragam + Kegiatan + SPP ke-1</span>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
+                    <button type="button" onclick="closeModalTambahJenjang()" class="px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 font-bold text-xs">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-brand-primary hover:bg-brand-deep text-white font-extrabold text-xs shadow-xs hover:shadow transition">
+                        Simpan Jenjang Baru
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 2: UBAH INFORMASI REKENING BANK PEMBAYARAN -->
+    <!-- ========================================================================= -->
+    <div id="modalBank" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border border-gray-200/90 w-full max-w-md my-auto relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            <div class="card-header-brand flex items-center justify-between border-b border-[#3A241E] px-6 py-4.5" style="background: linear-gradient(135deg, #4A3029 0%, #5C3E35 100%) !important; color: #FFFFFF !important;">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center text-sm shadow-xs">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-white">Rekening Resmi Pembayaran</h3>
+                        <p class="text-[11px] text-[#D4C3B8]">Rekening tujuan transfer biaya formulir santri.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeModalBank()" class="text-white/70 hover:text-white p-1 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form action="" method="POST" class="p-6 space-y-4 text-xs">
+                <input type="hidden" name="action" value="update_bank">
+
+                <div>
+                    <label class="block font-extrabold text-gray-700 mb-1">Nama Bank Resmi</label>
+                    <input type="text" name="bank_nama" value="<?= htmlspecialchars($bank_nama) ?>" required placeholder="Contoh: Bank Syariah Indonesia (BSI)" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-xs font-semibold">
+                </div>
+
+                <div>
+                    <label class="block font-extrabold text-gray-700 mb-1">Nomor Rekening</label>
+                    <input type="text" name="bank_rekening" value="<?= htmlspecialchars($bank_rekening) ?>" required placeholder="Contoh: 7300750308" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-xs font-mono font-bold">
+                </div>
+
+                <div>
+                    <label class="block font-extrabold text-gray-700 mb-1">Atas Nama Rekening (A.N.)</label>
+                    <input type="text" name="bank_atas_nama" value="<?= htmlspecialchars($bank_atas_nama) ?>" required placeholder="Contoh: Pesantren Babul Jannah" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-xs font-semibold">
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
+                    <button type="button" onclick="closeModalBank()" class="px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 font-bold text-xs">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-brand-primary hover:bg-brand-deep text-white font-extrabold text-xs shadow-xs hover:shadow transition">
+                        Simpan Rekening
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Hidden Form for Delete Jenjang -->
+    <form id="formDeleteJenjang" action="" method="POST" class="hidden">
+        <input type="hidden" name="action" value="delete_jenjang">
+        <input type="hidden" name="id" id="deleteJenjangId" value="0">
+    </form>
+
+    <!-- JavaScript: Rupiah Formatter, Modals, & Realtime Calculator -->
     <script>
         // 1. Masking Format Rupiah saat Mengetik
         function formatRupiahString(val) {
@@ -638,14 +946,17 @@ include __DIR__ . '/includes/head.php';
             return parseInt(val.toString().replace(/\./g, '').replace(/,/g, '')) || 0;
         }
 
-        document.querySelectorAll('.format-rupiah').forEach(input => {
-            input.addEventListener('input', function() {
-                this.value = formatRupiahString(this.value);
+        function attachRupiahMasking(container = document) {
+            container.querySelectorAll('.format-rupiah').forEach(input => {
+                input.addEventListener('input', function() {
+                    this.value = formatRupiahString(this.value);
+                });
+                input.addEventListener('keyup', function() {
+                    this.value = formatRupiahString(this.value);
+                });
             });
-            input.addEventListener('keyup', function() {
-                this.value = formatRupiahString(this.value);
-            });
-        });
+        }
+        attachRupiahMasking();
 
         // 2. Kalkulasi Otomatis Total Biaya Masuk Awal (Live Calculator)
         function recalculateJenjangTotal(jenjangId) {
@@ -673,19 +984,91 @@ include __DIR__ . '/includes/head.php';
             input.addEventListener('change', () => recalculateJenjangTotal(jenjangId));
         });
 
-        // 3. Tombol Samakan Semua Tarif Ujian Seleksi
+        // 3. Kalkulasi Otomatis di Modal Tambah Jenjang
+        function recalculateModalTotal() {
+            const p = cleanNumber(document.getElementById('modalPangkal')?.value || 0);
+            const s = cleanNumber(document.getElementById('modalSeragam')?.value || 0);
+            const k = cleanNumber(document.getElementById('modalKegiatan')?.value || 0);
+            const spp = cleanNumber(document.getElementById('modalSpp')?.value || 0);
+            const total = p + s + k + spp;
+            const preview = document.getElementById('modalTotalPreview');
+            if (preview) preview.textContent = 'Rp ' + total.toLocaleString('id-ID');
+        }
+
+        document.querySelectorAll('.modal-calc').forEach(input => {
+            input.addEventListener('input', recalculateModalTotal);
+            input.addEventListener('keyup', recalculateModalTotal);
+            input.addEventListener('change', recalculateModalTotal);
+        });
+
+        // 4. Modal Tambah Jenjang Controls
+        function openModalTambahJenjang() {
+            document.getElementById('modalTambahJenjang').classList.remove('hidden');
+        }
+        function closeModalTambahJenjang() {
+            document.getElementById('modalTambahJenjang').classList.add('hidden');
+        }
+
+        // 5. Modal Bank Controls
+        function openModalBank() {
+            document.getElementById('modalBank').classList.remove('hidden');
+        }
+        function closeModalBank() {
+            document.getElementById('modalBank').classList.add('hidden');
+        }
+
+        // 6. Konfirmasi Hapus Jenjang dengan SweetAlert2
+        function confirmHapusJenjang(id, nama) {
+            Swal.fire({
+                title: 'Hapus Jenjang ' + nama + '?',
+                text: 'Data rincian biaya jenjang ini akan dihapus dari sistem dan tidak tampil lagi di web.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#E11D48',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'Ya, Hapus Jenjang',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('deleteJenjangId').value = id;
+                    document.getElementById('formDeleteJenjang').submit();
+                }
+            });
+        }
+
+        // 7. Tombol Samakan Semua Tarif Ujian Seleksi
         function samakanSemuaTarifTes() {
             const inputSmp = document.getElementById('inputBiayaSmp');
             const inputSma = document.getElementById('inputBiayaSma');
             const inputDef = document.getElementById('inputBiayaDef');
 
             const val = inputDef ? inputDef.value : (inputSma ? inputSma.value : '350.000');
-            if (confirm('Samakan tarif tes seleksi untuk semua jenjang menjadi Rp ' + val + ' ?')) {
-                if (inputSmp) inputSmp.value = val;
-                if (inputSma) inputSma.value = val;
-                if (inputDef) inputDef.value = val;
-            }
+            Swal.fire({
+                title: 'Samakan Tarif Tes?',
+                text: 'Samakan tarif tes seleksi untuk semua jenjang menjadi Rp ' + val + '?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#5C3E35',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'Ya, Samakan',
+                cancelButtonText: 'Batal'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    if (inputSmp) inputSmp.value = val;
+                    if (inputSma) inputSma.value = val;
+                    if (inputDef) inputDef.value = val;
+                }
+            });
         }
+
+        // Close on ESC
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModalTambahJenjang();
+                closeModalBank();
+            }
+        });
     </script>
 
 </body>

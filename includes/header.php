@@ -93,6 +93,11 @@ if (!function_exists('get_storage_url')) {
     <meta property="twitter:description" content="<?= $site_desc ?>">
     <meta property="twitter:image" content="<?= $site_img ?>">
     
+    <!-- Google Fonts Official CDN: Plus Jakarta Sans & Playfair Display (Guaranteed High-Fidelity & Cross-Browser Consistency) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
     <!-- Google Fonts: Plus Jakarta Sans & Playfair Display (Lokal - All Weights) -->
     <link rel="stylesheet" href="assets/css/fonts.css">
     
