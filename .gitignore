@@ -36,6 +36,7 @@ desktop.ini
 .vscode/
 .idea/
 .gemini/
+scratch/
 *.suo
 *.ntvs*
 *.njsproj

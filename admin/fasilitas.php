@@ -880,61 +880,65 @@ include __DIR__ . '/includes/head.php';
                             class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-4 py-2.5 text-xs text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none resize-none leading-relaxed"><?= htmlspecialchars($edit_data['deskripsi']) ?></textarea>
                     </div>
 
-                    <!-- Field 3: Ikon Picker & Urutan Tampil -->
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <!-- Field 3: Ikon Picker & Urutan Tampil (Rock Solid Responsive Layout) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                         
-                        <!-- Ikon Picker with Presets -->
-                        <div class="md:col-span-8 space-y-2">
-                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                Ikon Fasilitas (FontAwesome)
+                        <!-- Ikon Picker with Presets (Takes 2 of 3 Columns) -->
+                        <div class="sm:col-span-2 space-y-2">
+                            <label for="form-ikon" class="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Ikon Fasilitas (FontAwesome) <span class="text-rose-500">*</span>
                             </label>
                             
-                            <div class="flex items-center space-x-2">
-                                <div class="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center text-lg flex-shrink-0 border border-brand-primary/20 shadow-2xs">
-                                    <i id="preview-icon" class="<?= htmlspecialchars($edit_data['ikon']) ?>"></i>
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-11 h-11 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center text-xl flex-shrink-0 border border-brand-primary/20 shadow-2xs">
+                                    <i id="preview-icon" class="<?= htmlspecialchars($edit_data['ikon'] ?: 'fa-solid fa-building') ?>"></i>
                                 </div>
-                                <input type="text" name="ikon" id="form-ikon" value="<?= htmlspecialchars($edit_data['ikon']) ?>" oninput="updateIconPreview(this.value)"
-                                    placeholder="fa-solid fa-building"
-                                    class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3.5 py-2 text-xs text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none font-mono">
+                                <div class="relative flex-grow">
+                                    <input type="text" name="ikon" id="form-ikon" value="<?= htmlspecialchars($edit_data['ikon'] ?: 'fa-solid fa-building') ?>" oninput="updateIconPreview(this.value)"
+                                        placeholder="fa-solid fa-building"
+                                        class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none font-mono font-bold">
+                                </div>
                             </div>
 
-                            <!-- Preset Icon Buttons -->
+                            <!-- Preset Icon Buttons (Horizontally Wrapping Pills) -->
                             <div class="pt-1">
-                                <span class="text-[10px] text-gray-400 font-bold block mb-1">Preset Ikon Cepat:</span>
-                                <div class="flex flex-wrap gap-1.5">
-                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-school')" class="px-2 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition" title="Sekolah / Kelas">
-                                        <i class="fa-solid fa-school mr-1"></i> Kelas
+                                <span class="text-[10px] text-gray-500 font-bold block mb-1.5 flex items-center">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-brand-primary mr-1 text-[9px]"></i> Preset Ikon Cepat:
+                                </span>
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-school')" class="inline-flex items-center px-2.5 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition shadow-2xs" title="Sekolah / Kelas">
+                                        <i class="fa-solid fa-school mr-1.5 text-teal-600"></i> Kelas
                                     </button>
-                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-mosque')" class="px-2 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition" title="Masjid / Mushala">
-                                        <i class="fa-solid fa-mosque mr-1"></i> Masjid
+                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-mosque')" class="inline-flex items-center px-2.5 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition shadow-2xs" title="Masjid / Mushala">
+                                        <i class="fa-solid fa-mosque mr-1.5 text-emerald-600"></i> Masjid
                                     </button>
-                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-bed')" class="px-2 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition" title="Asrama">
-                                        <i class="fa-solid fa-bed mr-1"></i> Asrama
+                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-bed')" class="inline-flex items-center px-2.5 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition shadow-2xs" title="Asrama">
+                                        <i class="fa-solid fa-bed mr-1.5 text-indigo-600"></i> Asrama
                                     </button>
-                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-book')" class="px-2 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition" title="Perpustakaan">
-                                        <i class="fa-solid fa-book mr-1"></i> Perpus
+                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-book')" class="inline-flex items-center px-2.5 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition shadow-2xs" title="Perpustakaan">
+                                        <i class="fa-solid fa-book mr-1.5 text-blue-600"></i> Perpus
                                     </button>
-                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-futbol')" class="px-2 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition" title="Lapangan Olahraga">
-                                        <i class="fa-solid fa-futbol mr-1"></i> Lapangan
+                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-futbol')" class="inline-flex items-center px-2.5 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition shadow-2xs" title="Lapangan Olahraga">
+                                        <i class="fa-solid fa-futbol mr-1.5 text-orange-600"></i> Lapangan
                                     </button>
-                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-utensils')" class="px-2 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition" title="Dapur / Kantin">
-                                        <i class="fa-solid fa-utensils mr-1"></i> Kantin
+                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-utensils')" class="inline-flex items-center px-2.5 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition shadow-2xs" title="Dapur / Kantin">
+                                        <i class="fa-solid fa-utensils mr-1.5 text-rose-600"></i> Kantin
                                     </button>
-                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-chalkboard')" class="px-2 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition" title="Papan Tulis / Lab">
-                                        <i class="fa-solid fa-chalkboard mr-1"></i> Lab
+                                    <button type="button" onclick="selectPresetIcon('fa-solid fa-chalkboard')" class="inline-flex items-center px-2.5 py-1 bg-gray-100 hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-bold text-gray-700 transition shadow-2xs" title="Papan Tulis / Lab">
+                                        <i class="fa-solid fa-chalkboard mr-1.5 text-purple-600"></i> Lab
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Urutan Tampil -->
-                        <div class="md:col-span-4 space-y-2">
-                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                Urutan Tampil
+                        <!-- Urutan Tampil (Takes 1 of 3 Columns) -->
+                        <div class="sm:col-span-1 space-y-2">
+                            <label for="form-urutan" class="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Urutan Tampil <span class="text-rose-500">*</span>
                             </label>
                             <input type="number" name="urutan" id="form-urutan" value="<?= (int)$edit_data['urutan'] ?>" min="0" max="999"
-                                class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-4 py-2 text-xs text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none font-bold">
-                            <span class="text-[10px] text-gray-400 block">Angka kecil tampil paling awal.</span>
+                                class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-4 py-2.5 text-xs text-gray-800 bg-gray-50/50 focus:bg-white transition-all focus:outline-none font-bold">
+                            <span class="text-[10px] text-gray-400 block leading-tight">Angka kecil tampil paling awal di web.</span>
                         </div>
 
                     </div>

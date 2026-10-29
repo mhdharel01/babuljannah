@@ -257,6 +257,41 @@
             outline: none !important;
             box-shadow: 0 0 0 3px rgba(92, 62, 53, 0.15) !important;
         }
+
+        /* Grid Column Fallbacks (Prevent Tailwind Purge Collapses) */
+        .col-span-1 { grid-column: span 1 / span 1 !important; }
+        .col-span-2 { grid-column: span 2 / span 2 !important; }
+        .col-span-3 { grid-column: span 3 / span 3 !important; }
+        .col-span-4 { grid-column: span 4 / span 4 !important; }
+        .col-span-5 { grid-column: span 5 / span 5 !important; }
+        .col-span-6 { grid-column: span 6 / span 6 !important; }
+        .col-span-7 { grid-column: span 7 / span 7 !important; }
+        .col-span-8 { grid-column: span 8 / span 8 !important; }
+        .col-span-9 { grid-column: span 9 / span 9 !important; }
+        .col-span-10 { grid-column: span 10 / span 10 !important; }
+        .col-span-11 { grid-column: span 11 / span 11 !important; }
+        .col-span-12 { grid-column: span 12 / span 12 !important; }
+
+        @media (min-width: 640px) {
+            .sm\:col-span-1 { grid-column: span 1 / span 1 !important; }
+            .sm\:col-span-2 { grid-column: span 2 / span 2 !important; }
+            .sm\:col-span-3 { grid-column: span 3 / span 3 !important; }
+            .sm\:col-span-4 { grid-column: span 4 / span 4 !important; }
+            .sm\:col-span-8 { grid-column: span 8 / span 8 !important; }
+        }
+
+        @media (min-width: 768px) {
+            .md\:col-span-1 { grid-column: span 1 / span 1 !important; }
+            .md\:col-span-2 { grid-column: span 2 / span 2 !important; }
+            .md\:col-span-3 { grid-column: span 3 / span 3 !important; }
+            .md\:col-span-4 { grid-column: span 4 / span 4 !important; }
+            .md\:col-span-5 { grid-column: span 5 / span 5 !important; }
+            .md\:col-span-6 { grid-column: span 6 / span 6 !important; }
+            .md\:col-span-7 { grid-column: span 7 / span 7 !important; }
+            .md\:col-span-8 { grid-column: span 8 / span 8 !important; }
+            .md\:col-span-9 { grid-column: span 9 / span 9 !important; }
+            .md\:col-span-12 { grid-column: span 12 / span 12 !important; }
+        }
     </style>
 
     <!-- Custom CSS/JS from specific pages -->
