@@ -96,9 +96,16 @@ $gelombang_aktif = $stmt_gel->fetch();
                                 <div>
                                     <!-- News Image -->
                                     <div class="relative h-56 overflow-hidden bg-gray-100">
-                                        <img src="<?= get_storage_url('berita', preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $news['gambar'])) ?>" alt="<?= htmlspecialchars($news['judul']) ?>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                        <img src="<?= get_storage_url('berita', preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $news['gambar'])) ?>" 
+                                             alt="<?= htmlspecialchars($news['judul']) ?>" 
+                                             onerror="this.onerror=null; this.src='assets/images/placeholder.webp';"
+                                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                                         <div class="absolute top-4 left-4 bg-primary text-accent text-xs font-bold tracking-wider px-3 py-1.5 rounded-xl uppercase shadow">
                                             <?= date('d M Y', strtotime($news['created_at'])) ?>
+                                        </div>
+                                        <div class="absolute top-4 right-4 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-lg shadow">
+                                            <i class="fa-regular fa-clock mr-1 text-[9px] text-amber-300"></i>
+                                            <?= max(1, (int)ceil(count(array_filter(preg_split('/\s+/', strip_tags($news['isi'])))) / 150)) ?> mnt baca
                                         </div>
                                     </div>
                                     <div class="p-5 space-y-2">

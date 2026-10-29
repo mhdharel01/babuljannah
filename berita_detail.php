@@ -78,6 +78,68 @@ $gelombang_aktif = $stmt_gel->fetch();
     </div>
 </div>
 
+<style>
+    .article-content h2 {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #5C3E35;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        border-bottom: 2px solid #F3EDE6;
+        padding-bottom: 0.35rem;
+    }
+    .article-content h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #2F2522;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+    .article-content p {
+        margin-bottom: 1rem;
+        line-height: 1.85;
+        color: #374151;
+    }
+    .article-content blockquote {
+        border-left: 4px solid #A17A6F;
+        padding: 0.85rem 1.25rem;
+        font-style: italic;
+        color: #4A3029;
+        background-color: #FDFBF7;
+        border-radius: 0 0.85rem 0.85rem 0;
+        margin: 1.25rem 0;
+    }
+    .article-content ul {
+        list-style-type: disc;
+        padding-left: 1.75rem;
+        margin-bottom: 1rem;
+    }
+    .article-content ol {
+        list-style-type: decimal;
+        padding-left: 1.75rem;
+        margin-bottom: 1rem;
+    }
+    .article-content li {
+        margin-bottom: 0.35rem;
+        color: #374151;
+        line-height: 1.7;
+    }
+    .article-content a {
+        color: #5C3E35;
+        text-decoration: underline;
+        font-weight: 600;
+        transition: color 0.15s;
+    }
+    .article-content a:hover {
+        color: #A17A6F;
+    }
+    .article-content hr {
+        border: 0;
+        border-top: 1px solid #E5E7EB;
+        margin: 1.75rem 0;
+    }
+</style>
+
 <!-- Main Section -->
 <section class="py-12 bg-accent flex-grow no-print">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -86,33 +148,64 @@ $gelombang_aktif = $stmt_gel->fetch();
             <!-- Left: Article Content -->
             <article class="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-gray-150 p-6 md:p-8 space-y-6">
                 <!-- Cover Image -->
-                <div class="relative h-64 md:h-[400px] overflow-hidden rounded-2xl bg-gray-100 border">
-                    <img src="<?= get_storage_url('berita', $news['gambar']) ?>" alt="<?= htmlspecialchars($news['judul']) ?>" class="w-full h-full object-cover">
+                <div class="relative h-64 md:h-[400px] overflow-hidden rounded-2xl bg-gray-100 border border-gray-200">
+                    <img src="<?= get_storage_url('berita', $news['gambar']) ?>" alt="<?= htmlspecialchars($news['judul']) ?>" 
+                         onerror="this.onerror=null; this.src='assets/images/placeholder.webp';"
+                         class="w-full h-full object-cover">
                 </div>
 
                 <!-- Meta Info -->
-                <div class="flex items-center space-x-4 text-xs text-gray-400 font-semibold border-b border-gray-100 pb-3">
+                <div class="flex flex-wrap items-center gap-3 text-xs text-gray-400 font-semibold border-b border-gray-100 pb-3">
                     <span><i class="fa-regular fa-calendar-days text-secondary mr-1.5"></i> <?= format_tanggal($news['created_at']) ?></span>
-                    <span>|</span>
-                    <span><i class="fa-regular fa-user text-secondary mr-1.5"></i> Ditulis oleh: Admin PSB</span>
+                    <span>•</span>
+                    <span><i class="fa-regular fa-user text-secondary mr-1.5"></i> Admin PSB Babul Jannah</span>
+                    <span>•</span>
+                    <span><i class="fa-regular fa-clock text-secondary mr-1.5"></i> <?= max(1, (int)ceil(count(array_filter(preg_split('/\s+/', strip_tags($news['isi'])))) / 150)) ?> menit baca</span>
                 </div>
 
                 <!-- Title -->
                 <h1 class="text-2xl md:text-3xl font-extrabold text-primary leading-tight">
-                    <?= $news['judul'] ?>
+                    <?= htmlspecialchars($news['judul']) ?>
                 </h1>
 
                 <!-- Body Text -->
-                <div class="text-xs md:text-sm text-gray-700 leading-relaxed space-y-4">
-                    <?= $news['isi'] ?>
+                <div class="article-content text-xs md:text-sm text-gray-700 leading-relaxed">
+                    <?php
+                    $raw_content = $news['isi'];
+                    if (strpos($raw_content, '<p>') === false && strpos($raw_content, '<div>') === false && strpos($raw_content, '<h') === false) {
+                        $p_items = explode("\n\n", $raw_content);
+                        foreach ($p_items as $pi) {
+                            $pi = trim($pi);
+                            if ($pi) {
+                                echo '<p>' . nl2br($pi) . '</p>';
+                            }
+                        }
+                    } else {
+                        echo $raw_content;
+                    }
+                    ?>
                 </div>
 
-                <!-- Back button -->
-                <div class="pt-6 border-t border-gray-100 flex justify-between">
+                <!-- Share Bar & Back button -->
+                <div class="pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <a href="berita.php" class="inline-flex items-center text-xs font-bold text-secondary hover:text-primary transition-colors">
                         <i class="fa-solid fa-chevron-left mr-1.5 text-[9px]"></i>
                         <span>Kembali ke Daftar Berita</span>
                     </a>
+
+                    <!-- Social Share -->
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="text-gray-400 font-bold text-[11px] mr-1">Bagikan:</span>
+                        <a href="https://api.whatsapp.com/send?text=<?= urlencode($news['judul'] . ' - Baca selengkapnya di: ' . $article_url) ?>" target="_blank" class="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition" title="Bagikan ke WhatsApp">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                        </a>
+                        <a href="https://www.facebook.com/sharer/sharer.php?u=<?= urlencode($article_url) ?>" target="_blank" class="w-8 h-8 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition" title="Bagikan ke Facebook">
+                            <i class="fa-brands fa-facebook-f text-xs"></i>
+                        </a>
+                        <button type="button" onclick="navigator.clipboard.writeText('<?= $article_url ?>'); alert('Tautan berita berhasil disalin ke papan klip!');" class="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition" title="Salin Tautan">
+                            <i class="fa-solid fa-link text-xs"></i>
+                        </button>
+                    </div>
                 </div>
             </article>
 
