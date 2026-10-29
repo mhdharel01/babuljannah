@@ -28,6 +28,27 @@ $semua_gelombang = $stmt_all_gelombang->fetchAll();
 
 
 
+// Ambil Pengaturan Kuota Penerimaan Santri Baru
+$kuota_smp = 100;
+$kuota_sma = 30;
+$tampilkan_catatan_kuota = 1;
+$catatan_kuota_custom = '';
+
+try {
+    $stmt_k = $db->query("SELECT kunci, nilai FROM pengaturan_sistem WHERE kunci IN ('kuota_penerimaan_smp', 'kuota_penerimaan_sma', 'tampilkan_catatan_kuota', 'catatan_kuota_gelombang')");
+    while ($rk = $stmt_k->fetch(PDO::FETCH_ASSOC)) {
+        if ($rk['kunci'] === 'kuota_penerimaan_smp' && is_numeric($rk['nilai'])) {
+            $kuota_smp = (int)$rk['nilai'];
+        } elseif ($rk['kunci'] === 'kuota_penerimaan_sma' && is_numeric($rk['nilai'])) {
+            $kuota_sma = (int)$rk['nilai'];
+        } elseif ($rk['kunci'] === 'tampilkan_catatan_kuota') {
+            $tampilkan_catatan_kuota = (int)$rk['nilai'];
+        } elseif ($rk['kunci'] === 'catatan_kuota_gelombang') {
+            $catatan_kuota_custom = trim($rk['nilai']);
+        }
+    }
+} catch (Throwable $e) {}
+
 // Ambil Biaya Formulir / Tes Seleksi (1 Nilai Global)
 $biaya_tes_global = get_biaya_tes();
 
@@ -109,9 +130,16 @@ require_once 'includes/header.php';
                 <div class="text-center space-y-2 mb-8">
                     <span class="text-secondary font-bold text-[10px] uppercase tracking-widest block">Informasi Waktu</span>
                     <h3 class="text-2xl font-extrabold text-primary font-sans">Jadwal Seluruh Gelombang</h3>
-                    <p class="text-xs text-red-500 font-semibold max-w-xl mx-auto bg-red-50 py-2 px-4 rounded-lg border border-red-100">
-                        <i class="fa-solid fa-circle-info mr-1"></i> Catatan: Jika kuota (100 SMP & 30 SMA) sudah terpenuhi pada Gelombang 1, maka Gelombang berikut nya otomatis <span class="font-bold underline">tidak akan dibuka</span>.
+                    <?php if ($tampilkan_catatan_kuota): ?>
+                    <p class="text-xs text-red-500 font-semibold max-w-xl mx-auto bg-red-50 py-2.5 px-4 rounded-xl border border-red-200/80 shadow-2xs">
+                        <i class="fa-solid fa-circle-info mr-1 text-red-600"></i>
+                        <?php if (!empty($catatan_kuota_custom)): ?>
+                            <?= nl2br(htmlspecialchars($catatan_kuota_custom)) ?>
+                        <?php else: ?>
+                            Catatan: Jika kuota (<?= $kuota_smp ?> SMP &amp; <?= $kuota_sma ?> SMA, Total <?= ($kuota_smp + $kuota_sma) ?> Santri) sudah terpenuhi pada Gelombang 1, maka Gelombang berikut nya otomatis <span class="font-bold underline">tidak akan dibuka</span>.
+                        <?php endif; ?>
                     </p>
+                    <?php endif; ?>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

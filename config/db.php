@@ -114,20 +114,25 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 
 // Helper function untuk sanitasi input
-function sanitize($data)
-{
-    return htmlspecialchars(strip_tags(trim((string)($data ?? ''))), ENT_QUOTES, 'UTF-8');
+if (!function_exists('sanitize')) {
+    function sanitize($data)
+    {
+        return htmlspecialchars(strip_tags(trim((string)($data ?? ''))), ENT_QUOTES, 'UTF-8');
+    }
 }
 
 // Helper untuk format Rupiah
-function format_rupiah($angka)
-{
-    return "Rp " . number_format((float)($angka ?? 0), 0, ',', '.');
+if (!function_exists('format_rupiah')) {
+    function format_rupiah($angka)
+    {
+        return "Rp " . number_format((float)($angka ?? 0), 0, ',', '.');
+    }
 }
 
 // Helper untuk format tanggal Indonesia
-function format_tanggal($tanggal)
-{
+if (!function_exists('format_tanggal')) {
+    function format_tanggal($tanggal)
+    {
     if (!$tanggal || $tanggal === '0000-00-00' || $tanggal === '0000-00-00 00:00:00')
         return '-';
     $time = strtotime($tanggal);
@@ -149,6 +154,7 @@ function format_tanggal($tanggal)
     ];
     $split = explode('-', date('Y-m-d', $time));
     return (int)$split[2] . ' ' . ($bulan[(int)$split[1]] ?? '') . ' ' . $split[0];
+    }
 }
 
 // Include Cloud Storage (Supabase)

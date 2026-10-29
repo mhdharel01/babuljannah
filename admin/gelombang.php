@@ -142,6 +142,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     }
 }
 
+// 5. Tangani Aksi Simpan Pengaturan Kuota Penerimaan Santri
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_kuota') {
+    $kuota_smp_post = max(1, (int)($_POST['kuota_penerimaan_smp'] ?? 100));
+    $kuota_sma_post = max(1, (int)($_POST['kuota_penerimaan_sma'] ?? 30));
+    $tampilkan_catatan_post = isset($_POST['tampilkan_catatan_kuota']) ? '1' : '0';
+    $catatan_custom_post = trim($_POST['catatan_kuota_gelombang'] ?? '');
+
+    try {
+        $stmt_set_kuota = $db->prepare("INSERT INTO pengaturan_sistem (kunci, nilai) VALUES (?, ?) ON DUPLICATE KEY UPDATE nilai = ?");
+        $stmt_set_kuota->execute(['kuota_penerimaan_smp', $kuota_smp_post, $kuota_smp_post]);
+        $stmt_set_kuota->execute(['kuota_penerimaan_sma', $kuota_sma_post, $kuota_sma_post]);
+        $stmt_set_kuota->execute(['tampilkan_catatan_kuota', $tampilkan_catatan_post, $tampilkan_catatan_post]);
+        $stmt_set_kuota->execute(['catatan_kuota_gelombang', $catatan_custom_post, $catatan_custom_post]);
+
+        $success = "Pengaturan target kuota penerimaan santri (SMP: {$kuota_smp_post}, SMA: {$kuota_sma_post}, Total: " . ($kuota_smp_post + $kuota_sma_post) . ") berhasil diperbarui!";
+    } catch (PDOException $e) {
+        $error = "Gagal menyimpan pengaturan kuota: " . $e->getMessage();
+    }
+}
+
 // Ambil pesan dari URL jika diredirect
 if (isset($_GET['success']) && empty($success)) {
     $success = sanitize($_GET['success']);
@@ -187,81 +207,142 @@ foreach ($gelombang_list as $g) {
     $total_semua_lunas += (int)$g['total_lunas'];
 }
 
-// Helper penentuan status dan timeline waktu
-function get_gelombang_status_meta($g, $today) {
-    if ($g['status'] === 'nonaktif') {
-        return [
-            'code' => 'nonaktif',
-            'label' => 'Nonaktif',
-            'badge_bg' => 'bg-gray-100 text-gray-600 border-gray-300/80',
-            'dot_color' => 'bg-gray-400',
-            'desc' => 'Dinonaktifkan oleh panitia (tidak tampil di publik)',
-            'is_open' => false,
-            'progress' => 0
-        ];
+// Ambil Pengaturan Kuota Santri Baru dari Database
+$kuota_smp = 100;
+$kuota_sma = 30;
+$tampilkan_catatan_kuota = 1;
+$catatan_kuota_custom = '';
+
+try {
+    $stmt_k = $db->query("SELECT kunci, nilai FROM pengaturan_sistem WHERE kunci IN ('kuota_penerimaan_smp', 'kuota_penerimaan_sma', 'tampilkan_catatan_kuota', 'catatan_kuota_gelombang')");
+    while ($rk = $stmt_k->fetch(PDO::FETCH_ASSOC)) {
+        if ($rk['kunci'] === 'kuota_penerimaan_smp' && is_numeric($rk['nilai'])) {
+            $kuota_smp = (int)$rk['nilai'];
+        } elseif ($rk['kunci'] === 'kuota_penerimaan_sma' && is_numeric($rk['nilai'])) {
+            $kuota_sma = (int)$rk['nilai'];
+        } elseif ($rk['kunci'] === 'tampilkan_catatan_kuota') {
+            $tampilkan_catatan_kuota = (int)$rk['nilai'];
+        } elseif ($rk['kunci'] === 'catatan_kuota_gelombang') {
+            $catatan_kuota_custom = trim($rk['nilai']);
+        }
     }
-    
-    $buka = $g['tgl_buka'];
-    $tutup = $g['tgl_tutup'];
-    $ujian = $g['tgl_ujian'] ?? null;
-    $pengumuman = $g['tgl_pengumuman'] ?? null;
-    
-    if ($today < $buka) {
-        $diff = ceil((strtotime($buka) - strtotime($today)) / 86400);
-        return [
-            'code' => 'upcoming',
-            'label' => 'Segera Dibuka',
-            'badge_bg' => 'bg-amber-50 text-amber-800 border-amber-300/80',
-            'dot_color' => 'bg-amber-500',
-            'desc' => 'Dibuka dalam ' . $diff . ' hari lagi (' . date('d/m/Y', strtotime($buka)) . ')',
-            'is_open' => false,
-            'progress' => 5
-        ];
-    } elseif ($today >= $buka && $today <= $tutup) {
-        $total_duration = max(1, (strtotime($tutup) - strtotime($buka)) / 86400);
-        $elapsed = max(0, (strtotime($today) - strtotime($buka)) / 86400);
-        $pct = min(100, max(5, round(($elapsed / $total_duration) * 100)));
-        $sisa = ceil((strtotime($tutup) - strtotime($today)) / 86400);
+} catch (Throwable $e) {}
+
+$total_kuota_semua = $kuota_smp + $kuota_sma;
+
+// Hitung Keterisian Nyata Santri per Jenjang dari Database
+$stat_jenjang = [
+    'smp' => ['daftar' => 0, 'lunas' => 0, 'lulus' => 0],
+    'sma' => ['daftar' => 0, 'lunas' => 0, 'lulus' => 0]
+];
+try {
+    $stmt_jenjang = $db->query("
+        SELECT jenjang,
+               COUNT(*) as total_daftar,
+               SUM(CASE WHEN status_pembayaran = 'Lunas' THEN 1 ELSE 0 END) as total_lunas,
+               SUM(CASE WHEN status_seleksi = 'Lulus' THEN 1 ELSE 0 END) as total_lulus
+        FROM pendaftaran
+        GROUP BY jenjang
+    ");
+    while ($rj = $stmt_jenjang->fetch(PDO::FETCH_ASSOC)) {
+        $j_lower = strtolower($rj['jenjang'] ?? '');
+        if (strpos($j_lower, 'smp') !== false) {
+            $stat_jenjang['smp']['daftar'] += (int)$rj['total_daftar'];
+            $stat_jenjang['smp']['lunas'] += (int)$rj['total_lunas'];
+            $stat_jenjang['smp']['lulus'] += (int)$rj['total_lulus'];
+        } elseif (strpos($j_lower, 'sma') !== false) {
+            $stat_jenjang['sma']['daftar'] += (int)$rj['total_daftar'];
+            $stat_jenjang['sma']['lunas'] += (int)$rj['total_lunas'];
+            $stat_jenjang['sma']['lulus'] += (int)$rj['total_lulus'];
+        }
+    }
+} catch (Throwable $e) {}
+
+$pct_smp = min(100, round(($stat_jenjang['smp']['daftar'] / max(1, $kuota_smp)) * 100, 1));
+$pct_sma = min(100, round(($stat_jenjang['sma']['daftar'] / max(1, $kuota_sma)) * 100, 1));
+$total_daftar_semua = $stat_jenjang['smp']['daftar'] + $stat_jenjang['sma']['daftar'];
+$pct_total = min(100, round(($total_daftar_semua / max(1, $total_kuota_semua)) * 100, 1));
+$sisa_smp = max(0, $kuota_smp - $stat_jenjang['smp']['daftar']);
+$sisa_sma = max(0, $kuota_sma - $stat_jenjang['sma']['daftar']);
+$sisa_total = max(0, $total_kuota_semua - $total_daftar_semua);
+
+// Helper penentuan status dan timeline waktu
+if (!function_exists('get_gelombang_status_meta')) {
+    function get_gelombang_status_meta($g, $today) {
+        if ($g['status'] === 'nonaktif') {
+            return [
+                'code' => 'nonaktif',
+                'label' => 'Nonaktif',
+                'badge_bg' => 'bg-gray-100 text-gray-600 border-gray-300/80',
+                'dot_color' => 'bg-gray-400',
+                'desc' => 'Dinonaktifkan oleh panitia (tidak tampil di publik)',
+                'is_open' => false,
+                'progress' => 0
+            ];
+        }
         
-        return [
-            'code' => 'open',
-            'label' => 'Sedang Dibuka',
-            'badge_bg' => 'bg-emerald-50 text-emerald-800 border-emerald-300',
-            'dot_color' => 'bg-emerald-600 animate-pulse',
-            'desc' => 'Tersisa ' . $sisa . ' hari pendaftaran (s/d ' . date('d/m/Y', strtotime($tutup)) . ')',
-            'is_open' => true,
-            'progress' => $pct
-        ];
-    } elseif ($ujian && $today <= $ujian) {
-        return [
-            'code' => 'ujian',
-            'label' => 'Masa Ujian Seleksi',
-            'badge_bg' => 'bg-indigo-50 text-indigo-800 border-indigo-300/80',
-            'dot_color' => 'bg-indigo-600',
-            'desc' => 'Pendaftaran ditutup, ujian pada ' . date('d/m/Y', strtotime($ujian)),
-            'is_open' => false,
-            'progress' => 80
-        ];
-    } elseif ($pengumuman && $today <= $pengumuman) {
-        return [
-            'code' => 'pengumuman',
-            'label' => 'Menunggu Pengumuman',
-            'badge_bg' => 'bg-purple-50 text-purple-800 border-purple-300/80',
-            'dot_color' => 'bg-purple-600',
-            'desc' => 'Pengumuman hasil seleksi pada ' . date('d/m/Y', strtotime($pengumuman)),
-            'is_open' => false,
-            'progress' => 95
-        ];
-    } else {
-        return [
-            'code' => 'closed',
-            'label' => 'Periode Selesai',
-            'badge_bg' => 'bg-slate-100 text-slate-700 border-slate-300',
-            'dot_color' => 'bg-slate-500',
-            'desc' => 'Seluruh tahapan seleksi gelombang ini telah rampung',
-            'is_open' => false,
-            'progress' => 100
-        ];
+        $buka = $g['tgl_buka'];
+        $tutup = $g['tgl_tutup'];
+        $ujian = $g['tgl_ujian'] ?? null;
+        $pengumuman = $g['tgl_pengumuman'] ?? null;
+        
+        if ($today < $buka) {
+            $diff = ceil((strtotime($buka) - strtotime($today)) / 86400);
+            return [
+                'code' => 'upcoming',
+                'label' => 'Segera Dibuka',
+                'badge_bg' => 'bg-amber-50 text-amber-800 border-amber-300/80',
+                'dot_color' => 'bg-amber-500',
+                'desc' => 'Dibuka dalam ' . $diff . ' hari lagi (' . date('d/m/Y', strtotime($buka)) . ')',
+                'is_open' => false,
+                'progress' => 5
+            ];
+        } elseif ($today >= $buka && $today <= $tutup) {
+            $total_duration = max(1, (strtotime($tutup) - strtotime($buka)) / 86400);
+            $elapsed = max(0, (strtotime($today) - strtotime($buka)) / 86400);
+            $pct = min(100, max(5, round(($elapsed / $total_duration) * 100)));
+            $sisa = ceil((strtotime($tutup) - strtotime($today)) / 86400);
+            
+            return [
+                'code' => 'open',
+                'label' => 'Sedang Dibuka',
+                'badge_bg' => 'bg-emerald-50 text-emerald-800 border-emerald-300',
+                'dot_color' => 'bg-emerald-600 animate-pulse',
+                'desc' => 'Tersisa ' . $sisa . ' hari pendaftaran (s/d ' . date('d/m/Y', strtotime($tutup)) . ')',
+                'is_open' => true,
+                'progress' => $pct
+            ];
+        } elseif ($ujian && $today <= $ujian) {
+            return [
+                'code' => 'ujian',
+                'label' => 'Masa Ujian Seleksi',
+                'badge_bg' => 'bg-indigo-50 text-indigo-800 border-indigo-300/80',
+                'dot_color' => 'bg-indigo-600',
+                'desc' => 'Pendaftaran ditutup, ujian pada ' . date('d/m/Y', strtotime($ujian)),
+                'is_open' => false,
+                'progress' => 80
+            ];
+        } elseif ($pengumuman && $today <= $pengumuman) {
+            return [
+                'code' => 'pengumuman',
+                'label' => 'Menunggu Pengumuman',
+                'badge_bg' => 'bg-purple-50 text-purple-800 border-purple-300/80',
+                'dot_color' => 'bg-purple-600',
+                'desc' => 'Pengumuman hasil seleksi pada ' . date('d/m/Y', strtotime($pengumuman)),
+                'is_open' => false,
+                'progress' => 95
+            ];
+        } else {
+            return [
+                'code' => 'closed',
+                'label' => 'Periode Selesai',
+                'badge_bg' => 'bg-slate-100 text-slate-700 border-slate-300',
+                'dot_color' => 'bg-slate-500',
+                'desc' => 'Seluruh tahapan seleksi gelombang ini telah rampung',
+                'is_open' => false,
+                'progress' => 100
+            ];
+        }
     }
 }
 
@@ -521,7 +602,250 @@ include __DIR__ . '/includes/head.php';
             </div>
 
             <!-- ======================================================== -->
-            <!-- 3. MAIN WORKSPACE: FORM (KIRI) & DAFTAR GELOMBANG (KANAN) -->
+            <!-- 2.1 TARGET KUOTA PENERIMAAN & KEBIJAKAN GELOMBANG -->
+            <!-- ======================================================== -->
+            <div class="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-5 space-y-4">
+                
+                <!-- Section Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 border border-rose-200/80 flex items-center justify-center text-sm font-bold shadow-2xs">
+                            <i class="fa-solid fa-users-gear"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-sm sm:text-base font-extrabold text-gray-900">
+                                    Target Kuota Penerimaan Santri &amp; Pengumuman Gelombang
+                                </h3>
+                                <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800">
+                                    Kebijakan PSB
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-0.5">
+                                Atur kapasitas daya tampung santri baru yang diterima (SMP IT &amp; SMA IT) serta teks catatan kuota yang tampil pada jadwal pendaftaran online.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Total Capacity Live Badge -->
+                    <div class="flex items-center space-x-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl self-start sm:self-auto">
+                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Kapasitas:</span>
+                        <span class="text-xs font-black text-gray-900 font-mono" id="badgeTotalKuota"><?= $total_kuota_semua ?> Kursi</span>
+                        <span class="text-[10px] text-emerald-700 font-extrabold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                            Sisa <?= $sisa_total ?>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Grid 2 Kolom: Form Pengaturan (Kiri) & Live Keterisian + Preview (Kanan) -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                    
+                    <!-- Kolom Kiri: Form Pengaturan Kuota & Kalimat Pengumuman (6 / 12) -->
+                    <div class="lg:col-span-6 bg-gray-50/70 p-4 rounded-xl border border-gray-200/80 space-y-3.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold text-gray-800 flex items-center">
+                                <i class="fa-solid fa-sliders text-brand-primary mr-1.5"></i> Form Pengaturan Kuota
+                            </span>
+                            <span class="text-[10px] text-gray-400">Sinkronisasi Realtime</span>
+                        </div>
+
+                        <form action="gelombang.php" method="POST" id="formKuota" class="space-y-3.5">
+                            <input type="hidden" name="action" value="save_kuota">
+
+                            <!-- Input Kuota SMP IT & SMA IT -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                
+                                <!-- Kuota SMP IT -->
+                                <div class="bg-white p-3 rounded-xl border border-teal-200 shadow-2xs space-y-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <label for="inputKuotaSmp" class="text-[11px] font-extrabold text-teal-950 flex items-center">
+                                            <i class="fa-solid fa-school text-teal-700 mr-1 text-xs"></i> Kuota SMP IT
+                                        </label>
+                                        <span class="text-[9px] bg-teal-50 text-teal-800 font-black px-1.5 py-0.5 rounded border border-teal-200">
+                                            T.A 2026/2027
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-1.5">
+                                        <button type="button" onclick="adjustKuota('inputKuotaSmp', -5)" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-teal-100 text-gray-600 hover:text-teal-900 font-black text-xs transition flex items-center justify-center">-</button>
+                                        <input type="number" min="1" max="1000" id="inputKuotaSmp" name="kuota_penerimaan_smp" value="<?= $kuota_smp ?>" required class="flex-grow text-center font-black text-sm text-teal-950 border border-teal-300 rounded-lg py-1 px-2 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600">
+                                        <button type="button" onclick="adjustKuota('inputKuotaSmp', 5)" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-teal-100 text-gray-600 hover:text-teal-900 font-black text-xs transition flex items-center justify-center">+</button>
+                                        <span class="text-xs text-gray-500 font-bold">Santri</span>
+                                    </div>
+                                    <span class="text-[9px] text-gray-400 block">Kapasitas yang diterima di SMP IT</span>
+                                </div>
+
+                                <!-- Kuota SMA IT -->
+                                <div class="bg-white p-3 rounded-xl border border-indigo-200 shadow-2xs space-y-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <label for="inputKuotaSma" class="text-[11px] font-extrabold text-indigo-950 flex items-center">
+                                            <i class="fa-solid fa-graduation-cap text-indigo-700 mr-1 text-xs"></i> Kuota SMA IT
+                                        </label>
+                                        <span class="text-[9px] bg-indigo-50 text-indigo-800 font-black px-1.5 py-0.5 rounded border border-indigo-200">
+                                            T.A 2026/2027
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-1.5">
+                                        <button type="button" onclick="adjustKuota('inputKuotaSma', -5)" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-900 font-black text-xs transition flex items-center justify-center">-</button>
+                                        <input type="number" min="1" max="1000" id="inputKuotaSma" name="kuota_penerimaan_sma" value="<?= $kuota_sma ?>" required class="flex-grow text-center font-black text-sm text-indigo-950 border border-indigo-300 rounded-lg py-1 px-2 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600">
+                                        <button type="button" onclick="adjustKuota('inputKuotaSma', 5)" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-900 font-black text-xs transition flex items-center justify-center">+</button>
+                                        <span class="text-xs text-gray-500 font-bold">Santri</span>
+                                    </div>
+                                    <span class="text-[9px] text-gray-400 block">Kapasitas yang diterima di SMA IT</span>
+                                </div>
+
+                            </div>
+
+                            <!-- Checkbox Toggle Tampilkan Pengumuman -->
+                            <div class="bg-white p-3 rounded-xl border border-gray-200 flex items-start space-x-2.5">
+                                <input type="checkbox" id="checkTampilkanCatatan" name="tampilkan_catatan_kuota" value="1" <?= $tampilkan_catatan_kuota ? 'checked' : '' ?> class="mt-0.5 rounded text-brand-primary focus:ring-brand-primary/20 w-4 h-4 cursor-pointer">
+                                <label for="checkTampilkanCatatan" class="cursor-pointer">
+                                    <span class="text-xs font-extrabold text-gray-900 block">Tampilkan Pengumuman Kuota di Halaman Informasi Jadwal</span>
+                                    <span class="text-[10px] text-gray-500 leading-tight block mt-0.5">
+                                        Jika dicentang, banner catatan kuota (seperti di screenshot Anda) akan aktif ditampilkan di halaman <code class="text-brand-primary font-bold">daftar.php</code>.
+                                    </span>
+                                </label>
+                            </div>
+
+                            <!-- Textarea Kustom Catatan Kebijakan -->
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <label for="textareaCatatanKuota" class="text-[11px] font-extrabold text-gray-700">
+                                        Kustomisasi Teks Catatan Kuota (Opsional)
+                                    </label>
+                                    <button type="button" onclick="resetCatatanDefault()" class="text-[10px] text-brand-primary hover:underline font-bold">
+                                        Gunakan Kalimat Standar
+                                    </button>
+                                </div>
+                                <textarea id="textareaCatatanKuota" name="catatan_kuota_gelombang" rows="2" placeholder="Kosongkan jika ingin menggunakan kalimat standar otomatis sistem..." class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2 text-xs text-gray-800 bg-white leading-relaxed"><?= htmlspecialchars($catatan_kuota_custom) ?></textarea>
+                                <span class="text-[9px] text-gray-400 block">
+                                    *Jika dikosongkan, sistem otomatis membuat kalimat: <em>"Catatan: Jika kuota ([SMP] SMP &amp; [SMA] SMA) sudah terpenuhi pada Gelombang 1, maka Gelombang berikut nya otomatis tidak akan dibuka."</em>
+                                </span>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="flex items-center justify-between pt-1">
+                                <span class="text-[10px] text-gray-500">
+                                    <i class="fa-solid fa-cloud-arrow-up text-emerald-600 mr-1"></i> Tersimpan di sistem
+                                </span>
+                                <button type="submit" class="bg-rose-700 hover:bg-rose-800 text-white font-extrabold py-2 px-4 rounded-xl text-xs shadow-xs hover:shadow transition flex items-center space-x-1.5 transform active:scale-95">
+                                    <i class="fa-solid fa-floppy-disk text-xs"></i>
+                                    <span>Simpan Pengaturan Kuota</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Kolom Kanan: Live Keterisian & Pratinjau Tampilan Publik (6 / 12) -->
+                    <div class="lg:col-span-6 space-y-3.5">
+                        
+                        <!-- Visual Tracker Keterisian Nyata -->
+                        <div class="bg-white p-4 rounded-xl border border-gray-200/80 shadow-2xs space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-extrabold text-gray-800 flex items-center">
+                                    <i class="fa-solid fa-chart-pie text-brand-primary mr-1.5"></i> Keterisian Kuota Saat Ini (Live)
+                                </span>
+                                <span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                    Dari Data Pendaftaran
+                                </span>
+                            </div>
+
+                            <!-- Meter SMP IT -->
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-extrabold text-teal-950 flex items-center">
+                                        <span class="w-2 h-2 rounded-full bg-teal-600 mr-1.5"></span> SMP IT
+                                    </span>
+                                    <div class="text-right">
+                                        <span class="font-black text-gray-900"><?= $stat_jenjang['smp']['daftar'] ?></span>
+                                        <span class="text-gray-400">/ <span id="labelKuotaSmpLive"><?= $kuota_smp ?></span> Santri</span>
+                                        <span class="font-black text-teal-700 ml-1">(<?= $pct_smp ?>%)</span>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                    <div id="barSmpLive" class="bg-teal-600 h-2 rounded-full transition-all duration-300" style="width: <?= $pct_smp ?>%"></div>
+                                </div>
+                                <div class="flex items-center justify-between text-[10px] text-gray-400">
+                                    <span><?= $stat_jenjang['smp']['lunas'] ?> Bayar &bull; <?= $stat_jenjang['smp']['lulus'] ?> Lulus</span>
+                                    <span class="text-teal-800 font-bold" id="sisaSmpLive">Sisa <?= $sisa_smp ?> Kursi</span>
+                                </div>
+                            </div>
+
+                            <!-- Meter SMA IT -->
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-extrabold text-indigo-950 flex items-center">
+                                        <span class="w-2 h-2 rounded-full bg-indigo-600 mr-1.5"></span> SMA IT
+                                    </span>
+                                    <div class="text-right">
+                                        <span class="font-black text-gray-900"><?= $stat_jenjang['sma']['daftar'] ?></span>
+                                        <span class="text-gray-400">/ <span id="labelKuotaSmaLive"><?= $kuota_sma ?></span> Santri</span>
+                                        <span class="font-black text-indigo-700 ml-1">(<?= $pct_sma ?>%)</span>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                    <div id="barSmaLive" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: <?= $pct_sma ?>%"></div>
+                                </div>
+                                <div class="flex items-center justify-between text-[10px] text-gray-400">
+                                    <span><?= $stat_jenjang['sma']['lunas'] ?> Bayar &bull; <?= $stat_jenjang['sma']['lulus'] ?> Lulus</span>
+                                    <span class="text-indigo-800 font-bold" id="sisaSmaLive">Sisa <?= $sisa_sma ?> Kursi</span>
+                                </div>
+                            </div>
+
+                            <!-- Total Meter -->
+                            <div class="space-y-1 pt-1 border-t border-gray-100">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-black text-gray-800 flex items-center">
+                                        <span class="w-2 h-2 rounded-full bg-brand-primary mr-1.5"></span> Akumulasi Total
+                                    </span>
+                                    <div class="text-right">
+                                        <span class="font-black text-gray-900"><?= $total_daftar_semua ?></span>
+                                        <span class="text-gray-400">/ <span id="labelKuotaTotalLive"><?= $total_kuota_semua ?></span> Kursi</span>
+                                        <span class="font-black text-brand-primary ml-1">(<?= $pct_total ?>%)</span>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                    <div id="barTotalLive" class="bg-brand-primary h-2 rounded-full transition-all duration-300" style="width: <?= $pct_total ?>%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pratinjau Tampilan Pengumuman di Web Publik (daftar.php) -->
+                        <div class="bg-white p-4 rounded-xl border border-gray-200/80 shadow-2xs space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-extrabold text-gray-800 flex items-center">
+                                    <i class="fa-solid fa-eye text-rose-600 mr-1.5"></i> Pratinjau Tampilan di Web Publik
+                                </span>
+                                <a href="../daftar.php#jadwal" target="_blank" class="text-[10px] text-brand-primary hover:underline font-bold flex items-center space-x-1">
+                                    <span>Buka daftar.php</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                </a>
+                            </div>
+
+                            <div id="previewBoxWrapper">
+                                <div id="previewNoticeBox" class="text-xs text-red-600 font-semibold bg-red-50 py-3 px-4 rounded-xl border border-red-200 shadow-2xs leading-relaxed transition-all">
+                                    <i class="fa-solid fa-circle-info mr-1 text-red-600"></i>
+                                    <span id="previewNoticeText">
+                                        <?php if (!empty($catatan_kuota_custom)): ?>
+                                            <?= nl2br(htmlspecialchars($catatan_kuota_custom)) ?>
+                                        <?php else: ?>
+                                            Catatan: Jika kuota (<strong id="prevSmp"><?= $kuota_smp ?> SMP</strong> &amp; <strong id="prevSma"><?= $kuota_sma ?> SMA</strong>) sudah terpenuhi pada Gelombang 1, maka Gelombang berikut nya otomatis <span class="font-bold underline">tidak akan dibuka</span>.
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                                <p id="previewNoticeHiddenMsg" class="text-xs text-gray-400 italic py-2 text-center hidden">
+                                    (Pengumuman catatan kuota dinonaktifkan / disembunyikan dari web publik)
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- 3. MAIN WORKSPACE: FORM GELOMBANG (KIRI) & DAFTAR (KANAN) -->
             <!-- ======================================================== -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                 
@@ -1074,6 +1398,97 @@ include __DIR__ . '/includes/head.php';
                 document.getElementById('tgl_tutup').focus();
             }
         });
+
+        // ========================================================
+        // 4. Interactive Kuota Adjuster & Live Preview
+        // ========================================================
+        const totalDaftarSmp = <?= (int)$stat_jenjang['smp']['daftar'] ?>;
+        const totalDaftarSma = <?= (int)$stat_jenjang['sma']['daftar'] ?>;
+        const totalDaftarAll = <?= (int)$total_daftar_semua ?>;
+
+        function adjustKuota(inputId, delta) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            let val = parseInt(el.value, 10) || 0;
+            val = Math.max(1, Math.min(1000, val + delta));
+            el.value = val;
+            updateKuotaLivePreview();
+        }
+
+        function resetCatatanDefault() {
+            const textarea = document.getElementById('textareaCatatanKuota');
+            if (textarea) {
+                textarea.value = '';
+                updateKuotaLivePreview();
+            }
+        }
+
+        function updateKuotaLivePreview() {
+            const smpVal = parseInt(document.getElementById('inputKuotaSmp').value, 10) || 1;
+            const smaVal = parseInt(document.getElementById('inputKuotaSma').value, 10) || 1;
+            const totalVal = smpVal + smaVal;
+            const isVisible = document.getElementById('checkTampilkanCatatan').checked;
+            const customText = (document.getElementById('textareaCatatanKuota').value || '').trim();
+
+            // Update Badges & Labels
+            const badgeTotal = document.getElementById('badgeTotalKuota');
+            if (badgeTotal) badgeTotal.textContent = totalVal + ' Kursi';
+
+            const lblSmp = document.getElementById('labelKuotaSmpLive');
+            if (lblSmp) lblSmp.textContent = smpVal;
+            const lblSma = document.getElementById('labelKuotaSmaLive');
+            if (lblSma) lblSma.textContent = smaVal;
+            const lblTotal = document.getElementById('labelKuotaTotalLive');
+            if (lblTotal) lblTotal.textContent = totalVal;
+
+            // Update Progress Bars
+            const pctSmp = Math.min(100, Math.round((totalDaftarSmp / smpVal) * 100));
+            const pctSma = Math.min(100, Math.round((totalDaftarSma / smaVal) * 100));
+            const pctTotal = Math.min(100, Math.round((totalDaftarAll / totalVal) * 100));
+
+            const barSmp = document.getElementById('barSmpLive');
+            if (barSmp) barSmp.style.width = pctSmp + '%';
+            const barSma = document.getElementById('barSmaLive');
+            if (barSma) barSma.style.width = pctSma + '%';
+            const barTotal = document.getElementById('barTotalLive');
+            if (barTotal) barTotal.style.width = pctTotal + '%';
+
+            // Update Sisa
+            const sisaSmp = Math.max(0, smpVal - totalDaftarSmp);
+            const sisaSma = Math.max(0, smaVal - totalDaftarSma);
+            const sisaSmpEl = document.getElementById('sisaSmpLive');
+            if (sisaSmpEl) sisaSmpEl.textContent = 'Sisa ' + sisaSmp + ' Kursi';
+            const sisaSmaEl = document.getElementById('sisaSmaLive');
+            if (sisaSmaEl) sisaSmaEl.textContent = 'Sisa ' + sisaSma + ' Kursi';
+
+            // Update Notice Box Visibility & Text
+            const noticeBox = document.getElementById('previewNoticeBox');
+            const hiddenMsg = document.getElementById('previewNoticeHiddenMsg');
+            const noticeText = document.getElementById('previewNoticeText');
+
+            if (noticeBox && hiddenMsg) {
+                if (isVisible) {
+                    noticeBox.classList.remove('hidden');
+                    hiddenMsg.classList.add('hidden');
+                } else {
+                    noticeBox.classList.add('hidden');
+                    hiddenMsg.classList.remove('hidden');
+                }
+            }
+
+            if (noticeText) {
+                if (customText) {
+                    noticeText.textContent = customText;
+                } else {
+                    noticeText.innerHTML = `Catatan: Jika kuota (<strong>${smpVal} SMP</strong> &amp; <strong>${smaVal} SMA</strong>) sudah terpenuhi pada Gelombang 1, maka Gelombang berikut nya otomatis <span class="font-bold underline">tidak akan dibuka</span>.`;
+                }
+            }
+        }
+
+        document.getElementById('inputKuotaSmp').addEventListener('input', updateKuotaLivePreview);
+        document.getElementById('inputKuotaSma').addEventListener('input', updateKuotaLivePreview);
+        document.getElementById('checkTampilkanCatatan').addEventListener('change', updateKuotaLivePreview);
+        document.getElementById('textareaCatatanKuota').addEventListener('input', updateKuotaLivePreview);
     </script>
 
 </body>
