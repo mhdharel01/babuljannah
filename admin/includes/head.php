@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $page_title ?? 'Admin PSB - Babul Jannah' ?></title>
     
-    <!-- Tailwind CSS v3 Compiled (Local) -->
-    <link rel="stylesheet" href="../assets/css/tailwind.min.css">
+    <!-- Tailwind CSS v3 Compiled (Local with auto cache-busting) -->
+    <link rel="stylesheet" href="../assets/css/tailwind.min.css?v=<?= @filemtime(__DIR__ . '/../../assets/css/tailwind.min.css') ?: '1.0' ?>">
     
     <!-- Font Awesome (Local) -->
     <link rel="stylesheet" href="../assets/vendor/fontawesome/css/all.min.css">
@@ -19,8 +19,8 @@
     <!-- Fonts (Local Fallback) -->
     <link rel="stylesheet" href="../assets/css/fonts.css">
     
-    <!-- Custom Style Sheet (Includes Local Fonts: Plus Jakarta Sans) -->
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <!-- Custom Style Sheet (Includes Local Fonts & Overrides with auto cache-busting) -->
+    <link rel="stylesheet" href="../assets/css/style.css?v=<?= @filemtime(__DIR__ . '/../../assets/css/style.css') ?: '1.0' ?>">
     
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>

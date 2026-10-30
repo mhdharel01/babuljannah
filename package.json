@@ -1,4 +1,10 @@
 {
+  "name": "babul-jannah-psb",
+  "version": "1.0.0",
+  "scripts": {
+    "build:css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/tailwind.min.css --minify",
+    "watch:css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/tailwind.min.css --watch"
+  },
   "dependencies": {
     "@fontsource/playfair-display": "^5.3.0",
     "@fontsource/plus-jakarta-sans": "^5.3.0",

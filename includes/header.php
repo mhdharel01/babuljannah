@@ -107,11 +107,11 @@ if (!function_exists('get_storage_url')) {
     <!-- AOS (Animate On Scroll) CSS (Lokal) -->
     <link rel="stylesheet" href="assets/vendor/aos/aos.css">
     
-    <!-- Tailwind CSS Compiled -->
-    <link rel="stylesheet" href="assets/css/tailwind.min.css">
+    <!-- Tailwind CSS Compiled (With auto cache-busting) -->
+    <link rel="stylesheet" href="assets/css/tailwind.min.css?v=<?= @filemtime(__DIR__ . '/../assets/css/tailwind.min.css') ?: '1.0' ?>">
     
-    <!-- Custom Style (custom fonts, scrollbar & print rules) -->
-    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- Custom Style (custom fonts, scrollbar & print rules with auto cache-busting) -->
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= @filemtime(__DIR__ . '/../assets/css/style.css') ?: '1.0' ?>">
 </head>
 <body class="bg-white text-dark min-h-screen flex flex-col overflow-x-hidden">
 
