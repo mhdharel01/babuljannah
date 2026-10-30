@@ -45,8 +45,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $seragam = (int)str_replace('.', '', $_POST['seragam'] ?? 0);
                 $kegiatan = (int)str_replace('.', '', $_POST['kegiatan'] ?? 0);
                 $spp_bulanan = (int)str_replace('.', '', $_POST['spp_bulanan'] ?? 0);
-                $deskripsi = trim(sanitize($_POST['deskripsi'] ?? ''));
-                $catatan = trim(sanitize($_POST['catatan'] ?? ''));
+                $deskripsi = trim(sanitize(html_entity_decode($_POST['deskripsi'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+                $catatan = trim(sanitize(html_entity_decode($_POST['catatan'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8')));
 
                 try {
                     $stmt_ins = $db->prepare("
@@ -136,8 +136,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     $seragam = (int)str_replace('.', '', $data['seragam'] ?? 0);
                     $kegiatan = (int)str_replace('.', '', $data['kegiatan'] ?? 0);
                     $spp_bulanan = (int)str_replace('.', '', $data['spp_bulanan'] ?? 0);
-                    $deskripsi = trim(sanitize($data['deskripsi'] ?? ''));
-                    $catatan = trim(sanitize($data['catatan'] ?? ''));
+                    $deskripsi = trim(sanitize(html_entity_decode($data['deskripsi'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+                    $catatan = trim(sanitize(html_entity_decode($data['catatan'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8')));
 
                     $stmt_update->execute([
                         $deskripsi,
@@ -422,7 +422,7 @@ include __DIR__ . '/includes/head.php';
                         <span class="text-emerald-700 normal-case font-bold">PSB T.A <?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?></span>
                     </div>
                     <p class="text-xs text-gray-500 mt-0.5">
-                        Kelola biaya tes seleksi awal, uang pangkal, seragam, kegiatan, serta SPP bulanan santri baru.
+                        Kelola biaya tes seleksi awal, uang pangkal, perlengkapan, biaya semester, serta SPP bulanan santri baru.
                     </p>
                 </div>
 
@@ -674,18 +674,18 @@ include __DIR__ . '/includes/head.php';
                                                 </div>
                                             </div>
 
-                                            <!-- 2. Seragam & Asrama -->
+                                            <!-- 2. Perlengkapan -->
                                             <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
-                                                <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Seragam &amp; Asrama</label>
+                                                <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Perlengkapan</label>
                                                 <div class="input-rp-group">
                                                     <span class="input-rp-addon">Rp</span>
                                                     <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="seragam" name="biaya[<?= $bp['id'] ?>][seragam]" value="<?= number_format($bp['seragam'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
                                                 </div>
                                             </div>
 
-                                            <!-- 3. Kegiatan per Semester -->
+                                            <!-- 3. Biaya Semester -->
                                             <div class="p-2.5 bg-gray-50/70 rounded-xl border border-gray-200/80">
-                                                <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Kegiatan per Semester</label>
+                                                <label class="block text-[10px] font-extrabold text-gray-600 uppercase tracking-wider mb-1">Biaya Semester</label>
                                                 <div class="input-rp-group">
                                                     <span class="input-rp-addon">Rp</span>
                                                     <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="kegiatan" name="biaya[<?= $bp['id'] ?>][kegiatan]" value="<?= number_format($bp['kegiatan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
@@ -694,7 +694,7 @@ include __DIR__ . '/includes/head.php';
 
                                             <!-- 4. SPP Bulanan (Highlight Emerald) -->
                                             <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
-                                                <label class="block text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider mb-1">SPP Bulanan (Makan+Laundry)</label>
+                                                <label class="block text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider mb-1">SPP Bulanan</label>
                                                 <div class="input-rp-group input-rp-group-emerald">
                                                     <span class="input-rp-addon">Rp</span>
                                                     <input type="text" data-jenjang-id="<?= $bp['id'] ?>" data-field="spp" name="biaya[<?= $bp['id'] ?>][spp_bulanan]" value="<?= number_format($bp['spp_bulanan'], 0, '', '.') ?>" class="input-rp-control format-rupiah calc-trigger">
@@ -706,7 +706,7 @@ include __DIR__ . '/includes/head.php';
                                         <!-- Catatan Tambahan -->
                                         <div>
                                             <label class="block text-[11px] font-extrabold text-gray-700 mb-1">Catatan Tambahan (Ketentuan Cicilan, dll)</label>
-                                            <input type="text" name="biaya[<?= $bp['id'] ?>][catatan]" value="<?= htmlspecialchars($bp['catatan']) ?>" placeholder="Contoh: Biaya dapat dicicil 2 kali atau dibayar tunai." class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:border-brand-primary text-xs text-gray-800 bg-gray-50/50">
+                                            <input type="text" name="biaya[<?= $bp['id'] ?>][catatan]" value="<?= htmlspecialchars(html_entity_decode($bp['catatan'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?>" placeholder="Contoh: Biaya dapat dicicil 2 kali atau dibayar tunai." class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:border-brand-primary text-xs text-gray-800 bg-gray-50/50">
                                         </div>
 
                                     </div>
@@ -721,7 +721,7 @@ include __DIR__ . '/includes/head.php';
                                         <div class="text-xl sm:text-2xl font-black total-amount mt-0.5" id="totalPreview_<?= $bp['id'] ?>">
                                             Rp <?= number_format($total_estimasi, 0, ',', '.') ?>
                                         </div>
-                                        <span class="text-[10px] opacity-80 block">Pangkal + Seragam + Kegiatan + SPP Bulan ke-1</span>
+                                        <span class="text-[10px] opacity-80 block">Pangkal + Perlengkapan + Biaya Semester + SPP Bulan ke-1</span>
                                     </div>
                                     <div class="text-right hidden sm:block">
                                         <span class="text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-lg">
@@ -815,21 +815,21 @@ include __DIR__ . '/includes/head.php';
                         </div>
                     </div>
                     <div>
-                        <label class="block font-extrabold text-gray-700 mb-1">Seragam &amp; Asrama</label>
+                        <label class="block font-extrabold text-gray-700 mb-1">Perlengkapan</label>
                         <div class="input-rp-group">
                             <span class="input-rp-addon">Rp</span>
                             <input type="text" name="seragam" value="0" class="input-rp-control format-rupiah modal-calc" id="modalSeragam">
                         </div>
                     </div>
                     <div>
-                        <label class="block font-extrabold text-gray-700 mb-1">Kegiatan per Semester</label>
+                        <label class="block font-extrabold text-gray-700 mb-1">Biaya Semester</label>
                         <div class="input-rp-group">
                             <span class="input-rp-addon">Rp</span>
                             <input type="text" name="kegiatan" value="0" class="input-rp-control format-rupiah modal-calc" id="modalKegiatan">
                         </div>
                     </div>
                     <div>
-                        <label class="block font-extrabold text-emerald-800 mb-1">SPP Bulanan (Makan+Laundry)</label>
+                        <label class="block font-extrabold text-emerald-800 mb-1">SPP Bulanan</label>
                         <div class="input-rp-group input-rp-group-emerald">
                             <span class="input-rp-addon">Rp</span>
                             <input type="text" name="spp_bulanan" value="0" class="input-rp-control format-rupiah modal-calc" id="modalSpp">
@@ -849,7 +849,7 @@ include __DIR__ . '/includes/head.php';
                         <span class="text-[9px] font-extrabold uppercase tracking-wider block opacity-90">Estimasi Total Masuk Awal (Preview)</span>
                         <div class="text-lg font-black total-amount mt-0.5" id="modalTotalPreview">Rp 0</div>
                     </div>
-                    <span class="text-[10px] opacity-80">Pangkal + Seragam + Kegiatan + SPP ke-1</span>
+                    <span class="text-[10px] opacity-80">Pangkal + Perlengkapan + Biaya Semester + SPP ke-1</span>
                 </div>
 
                 <!-- Footer Buttons -->

@@ -643,16 +643,16 @@ $tahun_ajaran_aktif = get_tahun_ajaran_aktif();
                         </p>
                         <ul class="space-y-3 text-xs text-gray-700 font-medium divide-y divide-gray-200/60">
                             <li class="pt-2 flex justify-between"><span>Uang Pangkal / Pembangunan:</span> <span class="font-bold text-primary"><?= format_rupiah($mb['uang_pangkal']) ?></span></li>
-                            <li class="pt-2 flex justify-between"><span>Seragam & Perlengkapan Asrama:</span> <span class="font-bold text-primary"><?= format_rupiah($mb['seragam']) ?></span></li>
-                            <li class="pt-2 flex justify-between"><span>Kegiatan & Ekstrakurikuler per Semester:</span> <span class="font-bold text-primary"><?= format_rupiah($mb['kegiatan']) ?></span></li>
-                            <li class="pt-2 flex justify-between text-emerald-700 font-bold"><span>SPP Bulanan (Makan 3x + Asrama + Laundry):</span> <span><?= format_rupiah($mb['spp_bulanan']) ?> / bln</span></li>
+                            <li class="pt-2 flex justify-between"><span>Perlengkapan:</span> <span class="font-bold text-primary"><?= format_rupiah($mb['seragam']) ?></span></li>
+                            <li class="pt-2 flex justify-between"><span>Biaya Semester:</span> <span class="font-bold text-primary"><?= format_rupiah($mb['kegiatan']) ?></span></li>
+                            <li class="pt-2 flex justify-between text-emerald-700 font-bold"><span>SPP Bulanan:</span> <span><?= format_rupiah($mb['spp_bulanan']) ?> / bln</span></li>
                         </ul>
                     </div>
                     <div class="bg-primary text-white p-6 sm:p-8 rounded-2xl shadow-xl flex flex-col justify-center items-center text-center space-y-4 relative overflow-hidden">
                         <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
                         <span class="text-[10px] font-extrabold uppercase tracking-widest text-secondary bg-white/10 px-3 py-1 rounded-full">Total Estimasi Masuk Awal</span>
                         <div class="text-3xl sm:text-4xl font-extrabold font-serif tracking-tight text-accent"><?= format_rupiah($total) ?></div>
-                        <p class="text-[11px] text-gray-300 max-w-xs"><?= htmlspecialchars($mb['catatan']) ?></p>
+                        <p class="text-[11px] text-gray-300 max-w-xs"><?= htmlspecialchars(html_entity_decode($mb['catatan'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?></p>
                         <a href="daftar.php" class="inline-block bg-white text-primary hover:bg-secondary hover:text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow transition duration-200 w-full">Daftar Gelombang Ini</a>
                     </div>
                 </div>

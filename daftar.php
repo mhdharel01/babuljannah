@@ -438,10 +438,9 @@ require_once 'includes/header.php';
                                         class="fa-solid fa-circle-check text-secondary text-xs"></i> <span>Uang Pangkal /
                                         Pembangunan</span></li>
                                 <li class="flex items-center space-x-2"><i
-                                        class="fa-solid fa-circle-check text-secondary text-xs"></i> <span>Seragam &
-                                        Perlengkapan: <?= format_rupiah($mb['seragam']) ?></span></li>
+                                        class="fa-solid fa-circle-check text-secondary text-xs"></i> <span>Perlengkapan: <?= format_rupiah($mb['seragam']) ?></span></li>
                                 <li class="flex items-center space-x-2"><i
-                                        class="fa-solid fa-circle-check text-secondary text-xs"></i> <span>Kegiatan per Semester: <?= format_rupiah($mb['kegiatan']) ?></span></li>
+                                        class="fa-solid fa-circle-check text-secondary text-xs"></i> <span>Biaya Semester: <?= format_rupiah($mb['kegiatan']) ?></span></li>
                                 <li class="flex items-center space-x-2"><i
                                         class="fa-solid fa-circle-check text-secondary text-xs"></i>
                                     <span><?= htmlspecialchars($mb['deskripsi']) ?></span></li>
