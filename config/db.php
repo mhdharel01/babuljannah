@@ -179,8 +179,16 @@ if (!function_exists('get_storage_url')) {
         if (strpos($filename, 'http://') === 0 || strpos($filename, 'https://') === 0) return $filename;
         if (strpos($filename, 'assets/') === 0) return ($is_admin ? '../' : '') . $filename;
         
-        $clean_folder = trim((string)$folder, '/\\');
-        $clean_filename = trim((string)$filename, '/\\');
+        $clean_folder = trim(str_replace('\\', '/', (string)$folder), '/');
+        $clean_filename = ltrim(str_replace('\\', '/', (string)$filename), '/');
+        if ($clean_folder === 'uploads') {
+            $clean_folder = '';
+        } elseif (strpos($clean_folder, 'uploads/') === 0) {
+            $clean_folder = substr($clean_folder, 8);
+        }
+        if (strpos($clean_filename, 'uploads/') === 0) {
+            $clean_filename = substr($clean_filename, 8);
+        }
         $clean_path = !empty($clean_folder) ? ($clean_folder . '/' . $clean_filename) : $clean_filename;
         
         // Cek apakah file lokal ada di folder uploads

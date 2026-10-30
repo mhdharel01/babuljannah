@@ -903,7 +903,7 @@ include 'includes/head.php';
                                                     </div>
 
                                                     <?php if (!empty($p['bukti_bayar_tes'])): ?>
-                                                        <?php $bukti_full_url = get_storage_url('uploads', $p['bukti_bayar_tes'], '', true); ?>
+                                                        <?php $bukti_full_url = get_storage_url('', $p['bukti_bayar_tes'], '', true); ?>
                                                         <button type="button" onclick="showBuktiModal('<?= htmlspecialchars($bukti_full_url, ENT_QUOTES) ?>', <?= $p['id'] ?>, '<?= $p['status_pembayaran'] ?>', '<?= htmlspecialchars($p['bukti_bayar_tes'], ENT_QUOTES) ?>')" class="p-1.5 text-brand-primary hover:text-brand-deep hover:bg-brand-primary/10 rounded-md transition" title="Lihat Struk Transfer">
                                                             <i class="fa-solid fa-image text-xs"></i>
                                                         </button>

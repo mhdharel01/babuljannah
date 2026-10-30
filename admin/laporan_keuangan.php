@@ -1025,7 +1025,7 @@ $pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
                                 foreach ($pendaftar_lunas as $p): 
                                     $nominal = get_nominal_santri($p['jalur_pendaftaran'] ?? '', $biaya_tes_smp, $biaya_tes_sma, $biaya_tes_def);
                                     $has_bukti = !empty($p['bukti_bayar_tes']);
-                                    $bukti_url = $has_bukti ? get_storage_url('uploads', $p['bukti_bayar_tes'], '', true) : '';
+                                    $bukti_url = $has_bukti ? get_storage_url('', $p['bukti_bayar_tes'], '', true) : '';
                                 ?>
                                 <tr class="hover:bg-gray-50/80 transition-colors">
                                     <!-- No -->
@@ -1110,7 +1110,7 @@ $pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
                                     <!-- Bukti Struk -->
                                     <td class="px-4 py-3.5 text-center">
                                         <?php if ($has_bukti): ?>
-                                            <button type="button" onclick="openStrukModal('<?= htmlspecialchars($bukti_url, ENT_QUOTES) ?>', '<?= htmlspecialchars($p['no_registrasi'], ENT_QUOTES) ?>', '<?= htmlspecialchars($p['nama_santri'], ENT_QUOTES) ?>', '<?= number_format($nominal, 0, ',', '.') ?>', '<?= $p['tgl_lunas'] ? date('d M Y, H:i', strtotime($p['tgl_lunas'])) : '-' ?>', '<?= htmlspecialchars($p['metode_pembayaran'], ENT_QUOTES) ?>')" class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-700 transition group shadow-2xs" title="Pratinjau Foto Struk Pembayaran">
+                                            <button type="button" onclick="openStrukModal('<?= htmlspecialchars($bukti_url, ENT_QUOTES) ?>', '<?= htmlspecialchars($p['no_registrasi'], ENT_QUOTES) ?>', '<?= htmlspecialchars($p['nama_santri'], ENT_QUOTES) ?>', '<?= number_format($nominal, 0, ',', '.') ?>', '<?= $p['tgl_lunas'] ? date('d M Y, H:i', strtotime($p['tgl_lunas'])) : '-' ?>', '<?= htmlspecialchars($p['metode_pembayaran'], ENT_QUOTES) ?>', '<?= htmlspecialchars($p['bukti_bayar_tes'], ENT_QUOTES) ?>')" class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-700 transition group shadow-2xs" title="Pratinjau Foto Struk Pembayaran">
                                                 <i class="fa-regular fa-image text-brand-primary group-hover:text-white transition"></i>
                                                 <span>Lihat Struk</span>
                                             </button>
@@ -1369,12 +1369,17 @@ $pct_lain_jenjang = max(0, 100 - $pct_smp - $pct_sma);
 
     <!-- Javascript Modal Handlers -->
     <script>
-        function openStrukModal(imageUrl, noReg, namaSantri, nominal, tglLunas, metode) {
+        function openStrukModal(imageUrl, noReg, namaSantri, nominal, tglLunas, metode, fileName) {
             document.getElementById('modalSantriNama').textContent = namaSantri;
             document.getElementById('modalNoReg').textContent = noReg + ' • ' + (metode || 'Transfer');
             document.getElementById('modalNominal').textContent = 'Rp ' + nominal;
             
             const imgEl = document.getElementById('modalImg');
+            imgEl.onerror = function() {
+                if (fileName && !this.src.includes('../uploads/')) {
+                    this.src = '../uploads/' + fileName;
+                }
+            };
             imgEl.src = imageUrl;
 
             const dlBtn = document.getElementById('modalDownloadBtn');

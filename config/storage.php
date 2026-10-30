@@ -125,9 +125,20 @@ if (!function_exists('get_storage_url')) {
             return ($is_admin ? '../' : '') . $filename;
         }
 
-        // Clean paths
-        $folder = trim(str_replace('\\', '/', $folder), '/');
-        $filename = trim(str_replace('\\', '/', $filename), '/');
+        // Clean paths & normalize folder
+        $folder = trim(str_replace('\\', '/', (string)$folder), '/');
+        $filename = ltrim(str_replace('\\', '/', (string)$filename), '/');
+
+        // Strip redundant 'uploads/' or 'uploads' prefix if passed
+        if ($folder === 'uploads') {
+            $folder = '';
+        } elseif (strpos($folder, 'uploads/') === 0) {
+            $folder = substr($folder, 8);
+        }
+        if (strpos($filename, 'uploads/') === 0) {
+            $filename = substr($filename, 8);
+        }
+
         $clean_path = !empty($folder) ? ($folder . '/' . $filename) : $filename;
 
         if (defined('SUPABASE_STORAGE_ENABLED') && SUPABASE_STORAGE_ENABLED) {

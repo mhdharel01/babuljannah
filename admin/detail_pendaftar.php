@@ -366,9 +366,9 @@ include 'includes/head.php';
                             <!-- Pratinjau Struk / Upload Area -->
                             <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-col justify-center items-center text-center">
                                 <?php if (!empty($santri['bukti_bayar_tes'])): ?>
-                                    <?php $bukti_full_url = get_storage_url('uploads', $santri['bukti_bayar_tes'], '', true); ?>
-                                    <div class="relative group cursor-pointer" onclick="openBuktiModal('<?= htmlspecialchars($bukti_full_url, ENT_QUOTES) ?>')">
-                                        <img src="<?= htmlspecialchars($bukti_full_url, ENT_QUOTES) ?>" alt="Struk Transfer" class="h-32 w-auto max-w-full object-cover rounded-lg border border-gray-300 shadow-xs group-hover:opacity-90 transition">
+                                    <?php $bukti_full_url = get_storage_url('', $santri['bukti_bayar_tes'], '', true); ?>
+                                    <div class="relative group cursor-pointer" onclick="openBuktiModal('<?= htmlspecialchars($bukti_full_url, ENT_QUOTES) ?>', '<?= htmlspecialchars($santri['bukti_bayar_tes'], ENT_QUOTES) ?>')">
+                                        <img src="<?= htmlspecialchars($bukti_full_url, ENT_QUOTES) ?>" alt="Struk Transfer" class="h-32 w-auto max-w-full object-cover rounded-lg border border-gray-300 shadow-xs group-hover:opacity-90 transition" onerror="this.onerror=null; if(!this.src.includes('../uploads/')) this.src='../uploads/<?= htmlspecialchars($santri['bukti_bayar_tes'], ENT_QUOTES) ?>';">
                                         <div class="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-xs font-bold space-x-1">
                                             <i class="fa-solid fa-magnifying-glass-plus"></i>
                                             <span>Perbesar Struk</span>
@@ -797,8 +797,14 @@ include 'includes/head.php';
     </div>
 
     <script>
-        function openBuktiModal(imgUrl) {
-            document.getElementById('modalBuktiImg').src = imgUrl;
+        function openBuktiModal(imgUrl, fileName) {
+            const imgEl = document.getElementById('modalBuktiImg');
+            imgEl.onerror = function() {
+                if (fileName && !this.src.includes('../uploads/')) {
+                    this.src = '../uploads/' + fileName;
+                }
+            };
+            imgEl.src = imgUrl;
             document.getElementById('modalBuktiDownload').href = imgUrl;
             document.getElementById('modalBukti').classList.remove('hidden');
             document.getElementById('modalBukti').classList.add('flex');
