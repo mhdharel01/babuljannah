@@ -430,75 +430,77 @@ $filter_jk = sanitize($_GET['filter_jk'] ?? '');
 $tgl_dari = sanitize($_GET['tgl_dari'] ?? '');
 $tgl_sampai = sanitize($_GET['tgl_sampai'] ?? '');
 
-$query_sql = "SELECT p.*, COALESCE(g.nama_gelombang, '-') as nama_gelombang FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE 1=1";
-$count_sql = "SELECT COUNT(*) FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE 1=1";
+$where_clauses = "";
 $params = [];
 
 if (!empty($search)) {
-    $search_clause = " AND (p.nama_santri LIKE :search OR p.no_registrasi LIKE :search OR p.nik_santri LIKE :search OR p.nisn LIKE :search OR p.kabupaten LIKE :search)";
-    $query_sql .= $search_clause;
-    $count_sql .= $search_clause;
+    $where_clauses .= " AND (p.nama_santri LIKE :search OR p.no_registrasi LIKE :search OR p.nik_santri LIKE :search OR p.nisn LIKE :search OR p.kabupaten LIKE :search)";
     $params['search'] = '%' . $search . '%';
 }
 
 if (!empty($filter_jalur)) {
-    $jalur_clause = " AND p.jalur_pendaftaran = :jalur";
-    $query_sql .= $jalur_clause;
-    $count_sql .= $jalur_clause;
+    $where_clauses .= " AND p.jalur_pendaftaran = :jalur";
     $params['jalur'] = $filter_jalur;
 }
 
 if (!empty($filter_bayar)) {
-    $bayar_clause = " AND p.status_pembayaran = :bayar";
-    $query_sql .= $bayar_clause;
-    $count_sql .= $bayar_clause;
+    $where_clauses .= " AND p.status_pembayaran = :bayar";
     $params['bayar'] = $filter_bayar;
 }
 
 if (!empty($filter_seleksi)) {
-    $seleksi_clause = " AND p.status_seleksi = :seleksi";
-    $query_sql .= $seleksi_clause;
-    $count_sql .= $seleksi_clause;
+    $where_clauses .= " AND p.status_seleksi = :seleksi";
     $params['seleksi'] = $filter_seleksi;
 }
 
 if (!empty($filter_gelombang)) {
-    $gel_clause = " AND p.gelombang_id = :gelombang";
-    $query_sql .= $gel_clause;
-    $count_sql .= $gel_clause;
+    $where_clauses .= " AND p.gelombang_id = :gelombang";
     $params['gelombang'] = $filter_gelombang;
 }
 
 if (!empty($filter_jk)) {
     if ($filter_jk === 'Laki-laki') {
-        $jk_clause = " AND (p.jk = 'Laki-laki' OR p.jk = 'L' OR p.jk LIKE 'Laki%')";
-        $query_sql .= $jk_clause;
-        $count_sql .= $jk_clause;
+        $where_clauses .= " AND (p.jk = 'Laki-laki' OR p.jk = 'L' OR p.jk LIKE 'Laki%')";
     } elseif ($filter_jk === 'Perempuan') {
-        $jk_clause = " AND (p.jk = 'Perempuan' OR p.jk = 'P' OR p.jk LIKE 'Perem%')";
-        $query_sql .= $jk_clause;
-        $count_sql .= $jk_clause;
+        $where_clauses .= " AND (p.jk = 'Perempuan' OR p.jk = 'P' OR p.jk LIKE 'Perem%')";
     } else {
-        $jk_clause = " AND p.jk = :jk";
-        $query_sql .= $jk_clause;
-        $count_sql .= $jk_clause;
+        $where_clauses .= " AND p.jk = :jk";
         $params['jk'] = $filter_jk;
     }
 }
 
 if (!empty($tgl_dari) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_dari)) {
-    $tgl_dari_clause = " AND p.created_at >= :tgl_dari";
-    $query_sql .= $tgl_dari_clause;
-    $count_sql .= $tgl_dari_clause;
+    $where_clauses .= " AND p.created_at >= :tgl_dari";
     $params['tgl_dari'] = $tgl_dari . ' 00:00:00';
 }
 
 if (!empty($tgl_sampai) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_sampai)) {
-    $tgl_sampai_clause = " AND p.created_at <= :tgl_sampai";
-    $query_sql .= $tgl_sampai_clause;
-    $count_sql .= $tgl_sampai_clause;
+    $where_clauses .= " AND p.created_at <= :tgl_sampai";
     $params['tgl_sampai'] = $tgl_sampai . ' 23:59:59';
 }
+
+// 2.1. Query Rekap Agregasi Dinamis Sesuai Filter Aktif (Zero Manual Counting)
+$summary_sql = "SELECT 
+    COUNT(*) as total_filter,
+    SUM(CASE WHEN p.jk = 'Laki-laki' OR p.jk = 'L' OR p.jk LIKE 'Laki%' THEN 1 ELSE 0 END) as total_putra,
+    SUM(CASE WHEN p.jk = 'Perempuan' OR p.jk = 'P' OR p.jk LIKE 'Perem%' THEN 1 ELSE 0 END) as total_putri,
+    SUM(CASE WHEN p.jalur_pendaftaran = 'SMP IT' THEN 1 ELSE 0 END) as total_smp,
+    SUM(CASE WHEN p.jalur_pendaftaran = 'SMA IT' THEN 1 ELSE 0 END) as total_sma,
+    SUM(CASE WHEN p.status_pembayaran = 'Lunas' THEN 1 ELSE 0 END) as total_lunas,
+    SUM(CASE WHEN p.status_pembayaran = 'Menunggu Verifikasi' THEN 1 ELSE 0 END) as total_verif,
+    SUM(CASE WHEN p.status_pembayaran = 'Belum Bayar' THEN 1 ELSE 0 END) as total_belum_bayar,
+    SUM(CASE WHEN p.status_seleksi = 'Lulus' THEN 1 ELSE 0 END) as total_lulus
+FROM pendaftaran p
+LEFT JOIN gelombang g ON p.gelombang_id = g.id
+WHERE 1=1" . $where_clauses;
+
+$stmt_sum = $db->prepare($summary_sql);
+$stmt_sum->execute($params);
+$filter_sum = $stmt_sum->fetch(PDO::FETCH_ASSOC) ?: [
+    'total_filter' => 0, 'total_putra' => 0, 'total_putri' => 0,
+    'total_smp' => 0, 'total_sma' => 0, 'total_lunas' => 0,
+    'total_verif' => 0, 'total_belum_bayar' => 0, 'total_lulus' => 0
+];
 
 // Pagination Logic
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -507,12 +509,10 @@ $limit = 10;
 $offset = ($page - 1) * $limit;
 
 // Count total
-$stmt_count = $db->prepare($count_sql);
-$stmt_count->execute($params);
-$total_data = (int)$stmt_count->fetchColumn();
+$total_data = (int)$filter_sum['total_filter'];
 $total_pages = max(1, ceil($total_data / $limit));
 
-$query_sql .= " ORDER BY p.id DESC LIMIT $limit OFFSET $offset";
+$query_sql = "SELECT p.*, COALESCE(g.nama_gelombang, '-') as nama_gelombang FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE 1=1" . $where_clauses . " ORDER BY p.id DESC LIMIT $limit OFFSET $offset";
 $stmt_list = $db->prepare($query_sql);
 $stmt_list->execute($params);
 $pendaftar_list = $stmt_list->fetchAll();
@@ -527,6 +527,31 @@ $stmt_stat = $db->query("SELECT
     SUM(CASE WHEN status_seleksi = 'Lulus' THEN 1 ELSE 0 END) as total_lulus
 FROM pendaftaran");
 $stat = $stmt_stat->fetch(PDO::FETCH_ASSOC);
+
+// 3.1. Ambil Statistik Khusus Hari Ini (Real-time Today Influx)
+$stmt_today = $db->query("SELECT 
+    COUNT(*) as total_today,
+    SUM(CASE WHEN jk = 'Laki-laki' OR jk = 'L' OR jk LIKE 'Laki%' THEN 1 ELSE 0 END) as putra_today,
+    SUM(CASE WHEN jk = 'Perempuan' OR jk = 'P' OR jk LIKE 'Perem%' THEN 1 ELSE 0 END) as putri_today
+FROM pendaftaran 
+WHERE DATE(created_at) = CURDATE()");
+$stat_today = $stmt_today->fetch(PDO::FETCH_ASSOC) ?: ['total_today' => 0, 'putra_today' => 0, 'putri_today' => 0];
+
+// 3.2. Ambil Riwayat Rekap Harian (Daily Ledger) untuk Modal Rekap Harian
+$stmt_ledger = $db->query("SELECT 
+    DATE(created_at) as tgl,
+    COUNT(*) as total,
+    SUM(CASE WHEN jk = 'Laki-laki' OR jk = 'L' OR jk LIKE 'Laki%' THEN 1 ELSE 0 END) as putra,
+    SUM(CASE WHEN jk = 'Perempuan' OR jk = 'P' OR jk LIKE 'Perem%' THEN 1 ELSE 0 END) as putri,
+    SUM(CASE WHEN status_pembayaran = 'Lunas' THEN 1 ELSE 0 END) as lunas,
+    SUM(CASE WHEN jalur_pendaftaran = 'SMP IT' THEN 1 ELSE 0 END) as smp,
+    SUM(CASE WHEN jalur_pendaftaran = 'SMA IT' THEN 1 ELSE 0 END) as sma
+FROM pendaftaran
+WHERE created_at IS NOT NULL
+GROUP BY DATE(created_at)
+ORDER BY tgl DESC
+LIMIT 30");
+$daily_ledger = $stmt_ledger->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
 // 4. Ambil Daftar Gelombang untuk Filter
 $stmt_gel = $db->query("SELECT id, nama_gelombang, tahun_ajaran FROM gelombang ORDER BY id DESC");
@@ -604,6 +629,16 @@ include 'includes/head.php';
                         <div class="flex items-center space-x-2 mt-2.5 pt-2.5 border-t border-gray-100 text-xs font-semibold text-gray-600">
                             <span class="px-2 py-0.5 bg-gray-100 rounded-md font-bold text-gray-800">SMP: <?= $stat['total_smp'] ?? 0 ?></span>
                             <span class="px-2 py-0.5 bg-gray-100 rounded-md font-bold text-gray-800">SMA: <?= $stat['total_sma'] ?? 0 ?></span>
+                        </div>
+                        <div class="mt-2.5 pt-2 border-t border-dashed border-gray-200 flex items-center justify-between text-[11px]">
+                            <span class="font-bold text-emerald-700 flex items-center">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                                Hari Ini: +<?= number_format($stat_today['total_today'] ?? 0) ?> Santri
+                            </span>
+                            <span class="text-[10px] font-bold">
+                                <span class="text-blue-600 font-bold">🚹 <?= $stat_today['putra_today'] ?? 0 ?></span> &bull; 
+                                <span class="text-pink-600 font-bold">🚺 <?= $stat_today['putri_today'] ?? 0 ?></span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -714,6 +749,12 @@ include 'includes/head.php';
                             <span>+ Input Santri Baru</span>
                         </a>
                         <?php endif; ?>
+
+                        <!-- Tombol Rekap Harian (Pop-up Log Ledger) -->
+                        <button type="button" onclick="showDailyLedgerModal()" class="inline-flex items-center space-x-1.5 font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition bg-white hover:bg-gray-100 text-gray-800 border border-gray-300">
+                            <i class="fa-solid fa-calendar-days text-brand-primary text-xs"></i>
+                            <span>Rekap Harian</span>
+                        </button>
 
                         <!-- Tombol Ekspor Excel -->
                         <a href="export.php?<?= build_filter_query() ?>" class="btn-export-excel inline-flex items-center space-x-1.5 font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition" style="background-color: #15803D !important; color: #FFFFFF !important; border: 1px solid #166534 !important;">
@@ -830,6 +871,25 @@ include 'includes/head.php';
 
                     </div>
 
+                    <!-- Shortcut 1-Klik Presets Tanggal Cepat -->
+                    <div class="flex items-center justify-between flex-wrap gap-2 pt-1 pb-1 text-xs">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mr-1"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>Pintas Hari:</span>
+                            <button type="button" onclick="setDatePreset('today')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 <?= ($tgl_dari === date('Y-m-d') && $tgl_sampai === date('Y-m-d')) ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300' ?>">
+                                <span>Hari Ini</span>
+                            </button>
+                            <button type="button" onclick="setDatePreset('yesterday')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 <?= ($tgl_dari === date('Y-m-d', strtotime('-1 day')) && $tgl_sampai === date('Y-m-d', strtotime('-1 day'))) ? 'bg-gray-800 text-white shadow-xs' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300' ?>">
+                                <span>Kemarin</span>
+                            </button>
+                            <button type="button" onclick="setDatePreset('last7')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 <?= ($tgl_dari === date('Y-m-d', strtotime('-6 days')) && $tgl_sampai === date('Y-m-d')) ? 'bg-gray-800 text-white shadow-xs' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300' ?>">
+                                <span>7 Hari Terakhir</span>
+                            </button>
+                            <button type="button" onclick="setDatePreset('this_month')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 <?= ($tgl_dari === date('Y-m-01') && $tgl_sampai === date('Y-m-d')) ? 'bg-gray-800 text-white shadow-xs' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300' ?>">
+                                <span>Bulan Ini</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Action Bar: Status Filter Aktif + Tombol Reset & Terapkan -->
                     <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-gray-100">
                         <div class="text-xs text-gray-500 font-medium w-full sm:w-auto">
@@ -867,6 +927,108 @@ include 'includes/head.php';
                     </div>
 
                 </form>
+            </div>
+
+            <!-- Live Rekap Intelligence Summary Card (Zero Manual Counting) -->
+            <div class="bg-gradient-to-r from-[#5C3E35]/5 via-white to-amber-50/40 rounded-2xl p-4 sm:p-5 border border-[#5C3E35]/20 shadow-xs mb-4">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between pb-3.5 mb-3.5 border-b border-gray-200/70 gap-2">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-brand-primary text-white flex items-center justify-center text-sm shadow-xs flex-shrink-0">
+                            <i class="fa-solid fa-chart-pie"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-2 flex-wrap">
+                                <span>Rekap Akurat Data Terfilter</span>
+                                <?php if (!empty($tgl_dari) && !empty($tgl_sampai) && $tgl_dari === $tgl_sampai): ?>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-brand-primary text-white shadow-2xs">
+                                        📅 <?= ($tgl_dari === date('Y-m-d')) ? 'Hari Ini (' . date('d M Y') . ')' : date('d M Y', strtotime($tgl_dari)) ?>
+                                    </span>
+                                <?php elseif (!empty($tgl_dari) || !empty($tgl_sampai)): ?>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-brand-secondary/30 text-brand-primary border border-brand-secondary/40 shadow-2xs">
+                                        📅 <?= !empty($tgl_dari) ? date('d/m/Y', strtotime($tgl_dari)) : 'Awal' ?> &ndash; <?= !empty($tgl_sampai) ? date('d/m/Y', strtotime($tgl_sampai)) : 'Sekarang' ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gray-100 text-gray-600">Semua Waktu</span>
+                                <?php endif; ?>
+
+                                <?php if (!empty($filter_jk)): ?>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold <?= $filter_jk === 'Laki-laki' ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-pink-100 text-pink-800 border border-pink-200' ?>">
+                                        <?= $filter_jk === 'Laki-laki' ? '🚹 Hanya Putra' : '🚺 Hanya Putri' ?>
+                                    </span>
+                                <?php endif; ?>
+                            </h4>
+                            <p class="text-[11px] text-gray-500 font-medium">Kalkulasi otomatis real-time seluruh calon santri tanpa perlu menghitung manual.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button type="button" onclick="showDailyLedgerModal()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs">
+                            <i class="fa-solid fa-list-ol text-brand-primary"></i>
+                            <span>Tabel Rekap Harian</span>
+                        </button>
+                        <?php if ($active_filter_count > 0): ?>
+                            <a href="pendaftar.php" class="px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold transition flex items-center space-x-1" title="Hapus Filter">
+                                <i class="fa-solid fa-rotate-left text-[10px]"></i>
+                                <span class="hidden sm:inline">Reset</span>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- 4 Metrics Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <!-- Metric 1: Total Santri Terpilih -->
+                    <div class="bg-white/90 p-3 sm:p-3.5 rounded-xl border border-gray-200/80 shadow-2xs">
+                        <span class="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Calon Santri</span>
+                        <div class="text-2xl font-black text-gray-900 mt-0.5"><?= number_format($filter_sum['total_filter'] ?? 0) ?></div>
+                        <div class="text-[10px] text-gray-500 font-semibold mt-1">
+                            <span class="text-gray-700">SMP: <?= $filter_sum['total_smp'] ?? 0 ?></span> &bull; 
+                            <span class="text-gray-700">SMA: <?= $filter_sum['total_sma'] ?? 0 ?></span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 2: Komposisi Santri Putra -->
+                    <?php 
+                    $tot_f = (int)($filter_sum['total_filter'] ?? 0);
+                    $putra_f = (int)($filter_sum['total_putra'] ?? 0);
+                    $putri_f = (int)($filter_sum['total_putri'] ?? 0);
+                    $pct_putra = ($tot_f > 0) ? round(($putra_f / $tot_f) * 100) : 0;
+                    $pct_putri = ($tot_f > 0) ? round(($putri_f / $tot_f) * 100) : 0;
+                    ?>
+                    <div class="bg-white/90 p-3 sm:p-3.5 rounded-xl border border-blue-200/80 shadow-2xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">Santri Putra</span>
+                            <span class="text-xs font-black text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded"><?= $pct_putra ?>%</span>
+                        </div>
+                        <div class="text-2xl font-black text-blue-800 mt-0.5"><?= number_format($putra_f) ?> <span class="text-xs text-gray-400 font-normal">Santri</span></div>
+                        <div class="w-full bg-blue-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                            <div class="bg-blue-600 h-1.5 rounded-full" style="width: <?= $pct_putra ?>%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Metric 3: Komposisi Santri Putri -->
+                    <div class="bg-white/90 p-3 sm:p-3.5 rounded-xl border border-pink-200/80 shadow-2xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-extrabold text-pink-600 uppercase tracking-wider">Santri Putri</span>
+                            <span class="text-xs font-black text-pink-700 bg-pink-50 px-1.5 py-0.2 rounded"><?= $pct_putri ?>%</span>
+                        </div>
+                        <div class="text-2xl font-black text-pink-800 mt-0.5"><?= number_format($putri_f) ?> <span class="text-xs text-gray-400 font-normal">Santri</span></div>
+                        <div class="w-full bg-pink-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                            <div class="bg-pink-500 h-1.5 rounded-full" style="width: <?= $pct_putri ?>%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Metric 4: Keuangan & Kelulusan Terfilter -->
+                    <div class="bg-white/90 p-3 sm:p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs">
+                        <span class="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block">Status Biaya &amp; Tes</span>
+                        <div class="text-2xl font-black text-emerald-800 mt-0.5"><?= number_format($filter_sum['total_lunas'] ?? 0) ?> <span class="text-xs font-bold text-emerald-600">Lunas</span></div>
+                        <div class="text-[10px] text-gray-500 font-semibold mt-1">
+                            <span class="text-amber-700 font-bold"><?= $filter_sum['total_verif'] ?? 0 ?> Verif</span> &bull; 
+                            <span class="text-gray-500"><?= $filter_sum['total_belum_bayar'] ?? 0 ?> Belum</span> &bull; 
+                            <span class="text-brand-primary font-bold"><?= $filter_sum['total_lulus'] ?? 0 ?> Lulus</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Sticky Batch Action Toolbar (Hadir / Lunas / Lulus Massal) -->
@@ -1328,9 +1490,139 @@ include 'includes/head.php';
         </div>
     </div>
 
+    <!-- Modal Riwayat Rekap Harian (Daily Ledger Log) -->
+    <div id="daily-ledger-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-gray-200 relative max-h-[85vh] flex flex-col">
+            <button type="button" onclick="hideDailyLedgerModal()" class="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div class="flex items-center space-x-3 pb-4 border-b border-gray-100 mb-4 flex-shrink-0">
+                <div class="w-11 h-11 rounded-xl bg-amber-50 text-brand-primary flex items-center justify-center text-xl flex-shrink-0 shadow-xs border border-amber-200">
+                    <i class="fa-solid fa-calendar-days"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-extrabold text-[#2F2522]">Riwayat Rekap Pendaftaran Harian</h3>
+                    <p class="text-xs text-gray-500 font-medium">Log rekap jumlah calon santri per tanggal masuk (Putra, Putri &amp; Biaya)</p>
+                </div>
+            </div>
+
+            <!-- Scrollable Table -->
+            <div class="overflow-y-auto flex-grow custom-scrollbar border border-gray-200 rounded-2xl">
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="sticky top-0 bg-gray-100 border-b border-gray-200 text-gray-700 uppercase tracking-wider font-extrabold text-[10px]">
+                        <tr>
+                            <th class="px-4 py-3">Tanggal</th>
+                            <th class="px-3 py-3 text-center">Total Santri</th>
+                            <th class="px-3 py-3 text-center">Putra (L)</th>
+                            <th class="px-3 py-3 text-center">Putri (P)</th>
+                            <th class="px-3 py-3 text-center">Jenjang</th>
+                            <th class="px-3 py-3 text-center">Lunas</th>
+                            <th class="px-3 py-3 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 font-medium">
+                        <?php if (empty($daily_ledger)): ?>
+                            <tr>
+                                <td colspan="7" class="px-4 py-8 text-center text-gray-400">Belum ada riwayat data pendaftaran.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($daily_ledger as $dl): 
+                                $is_hari_ini = ($dl['tgl'] === date('Y-m-d'));
+                            ?>
+                                <tr class="hover:bg-amber-50/40 transition <?= $is_hari_ini ? 'bg-amber-50/20 font-bold' : '' ?>">
+                                    <td class="px-4 py-3 font-semibold text-gray-900 flex items-center space-x-1.5">
+                                        <?php if ($is_hari_ini): ?>
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                            <span><?= date('d M Y', strtotime($dl['tgl'])) ?> <span class="text-[10px] text-emerald-700 font-extrabold">(Hari Ini)</span></span>
+                                        <?php else: ?>
+                                            <span><?= date('d M Y', strtotime($dl['tgl'])) ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-3 py-3 text-center">
+                                        <span class="px-2 py-0.5 rounded-md font-black text-gray-900 bg-gray-100"><?= $dl['total'] ?></span>
+                                    </td>
+                                    <td class="px-3 py-3 text-center">
+                                        <span class="px-2 py-0.5 rounded-md font-bold text-blue-700 bg-blue-50 border border-blue-200">🚹 <?= $dl['putra'] ?></span>
+                                    </td>
+                                    <td class="px-3 py-3 text-center">
+                                        <span class="px-2 py-0.5 rounded-md font-bold text-pink-700 bg-pink-50 border border-pink-200">🚺 <?= $dl['putri'] ?></span>
+                                    </td>
+                                    <td class="px-3 py-3 text-center text-[10px] text-gray-600">
+                                        <span>SMP: <?= $dl['smp'] ?></span> | <span>SMA: <?= $dl['sma'] ?></span>
+                                    </td>
+                                    <td class="px-3 py-3 text-center">
+                                        <span class="px-2 py-0.5 rounded-md font-bold text-emerald-800 bg-emerald-50 border border-emerald-200"><?= $dl['lunas'] ?></span>
+                                    </td>
+                                    <td class="px-3 py-3 text-center">
+                                        <a href="pendaftar.php?tgl_dari=<?= $dl['tgl'] ?>&tgl_sampai=<?= $dl['tgl'] ?>" class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-brand-primary hover:bg-brand-deep text-white font-bold text-[10px] shadow-2xs transition">
+                                            <span>Lihat Data</span>
+                                            <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 mt-3 border-t border-gray-100 flex-shrink-0 text-xs">
+                <span class="text-gray-400 text-[11px]">Menampilkan riwayat tanggal pendaftaran aktif</span>
+                <button type="button" onclick="hideDailyLedgerModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition">Tutup</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts Manajemen & SweetAlert -->
     <script>
         let currentActivePayId = 0;
+
+        function showDailyLedgerModal() {
+            document.getElementById('daily-ledger-modal').classList.remove('hidden');
+        }
+
+        function hideDailyLedgerModal() {
+            document.getElementById('daily-ledger-modal').classList.add('hidden');
+        }
+
+        function setDatePreset(preset) {
+            const now = new Date();
+            const formatYMD = (d) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            const tglDariInput = document.getElementById('tgl_dari');
+            const tglSampaiInput = document.getElementById('tgl_sampai');
+
+            const todayStr = formatYMD(now);
+
+            if (preset === 'today') {
+                tglDariInput.value = todayStr;
+                tglSampaiInput.value = todayStr;
+            } else if (preset === 'yesterday') {
+                const y = new Date();
+                y.setDate(y.getDate() - 1);
+                const yStr = formatYMD(y);
+                tglDariInput.value = yStr;
+                tglSampaiInput.value = yStr;
+            } else if (preset === 'last7') {
+                const start = new Date();
+                start.setDate(start.getDate() - 6);
+                tglDariInput.value = formatYMD(start);
+                tglSampaiInput.value = todayStr;
+            } else if (preset === 'this_month') {
+                const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                tglDariInput.value = formatYMD(start);
+                tglSampaiInput.value = todayStr;
+            }
+
+            // Otomatis submit form filter
+            tglDariInput.closest('form').submit();
+        }
 
         function showImportModal() {
             document.getElementById('import-modal').classList.remove('hidden');
