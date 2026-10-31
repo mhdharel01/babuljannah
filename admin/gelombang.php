@@ -46,6 +46,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 ]);
                 
                 $success = "Gelombang pendaftaran baru '{$nama_gelombang}' berhasil ditambahkan!";
+                header("Location: gelombang.php?tab=jadwal&success=" . urlencode($success));
+                exit();
             } catch (PDOException $e) {
                 $error = "Gagal menyimpan gelombang: " . $e->getMessage();
             }
@@ -71,6 +73,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'toggle_status') {
                 $stmt->execute(['id' => $id]);
                 $success = "Status gelombang berhasil diaktifkan dan akan tampil di jadwal publik portal PSB.";
             }
+            header("Location: gelombang.php?tab=jadwal&success=" . urlencode($success));
+            exit();
         } catch (PDOException $e) {
             $error = "Gagal mengubah status gelombang: " . $e->getMessage();
         }
@@ -93,6 +97,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete') {
                 $stmt = $db->prepare("DELETE FROM gelombang WHERE id = :id");
                 $stmt->execute(['id' => $id]);
                 $success = "Gelombang pendaftaran berhasil dihapus dari sistem.";
+                header("Location: gelombang.php?tab=jadwal&success=" . urlencode($success));
+                exit();
             }
         } catch (PDOException $e) {
             $error = "Gagal menghapus gelombang: " . $e->getMessage();
@@ -131,7 +137,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 ]);
                 
                 $success = "Data dan jadwal gelombang '{$nama_gelombang}' berhasil diperbarui.";
-                header("Location: gelombang.php?success=" . urlencode($success));
+                header("Location: gelombang.php?tab=jadwal&success=" . urlencode($success));
                 exit();
             } catch (PDOException $e) {
                 $error = "Gagal memperbarui gelombang: " . $e->getMessage();
@@ -157,6 +163,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         $stmt_set_kuota->execute(['catatan_kuota_gelombang', $catatan_custom_post, $catatan_custom_post]);
 
         $success = "Pengaturan target kuota penerimaan santri (SMP: {$kuota_smp_post}, SMA: {$kuota_sma_post}, Total: " . ($kuota_smp_post + $kuota_sma_post) . ") berhasil diperbarui!";
+        header("Location: gelombang.php?tab=kuota&success=" . urlencode($success));
+        exit();
     } catch (PDOException $e) {
         $error = "Gagal menyimpan pengaturan kuota: " . $e->getMessage();
     }
@@ -346,6 +354,29 @@ if (!function_exists('get_gelombang_status_meta')) {
     }
 }
 
+// Helper serialisasi data gelombang untuk modal client-side
+if (!function_exists('format_gelombang_json')) {
+    function format_gelombang_json($g) {
+        return [
+            'id' => (int)($g['id'] ?? 0),
+            'nama_gelombang' => (string)($g['nama_gelombang'] ?? ''),
+            'tahun_ajaran' => (string)($g['tahun_ajaran'] ?? ''),
+            'jenjang_dibuka' => (string)($g['jenjang_dibuka'] ?? 'Semua'),
+            'tgl_buka' => (string)($g['tgl_buka'] ?? ''),
+            'tgl_tutup' => (string)($g['tgl_tutup'] ?? ''),
+            'tgl_ujian' => (string)($g['tgl_ujian'] ?? ''),
+            'tgl_pengumuman' => (string)($g['tgl_pengumuman'] ?? ''),
+            'status' => (string)($g['status'] ?? 'aktif'),
+        ];
+    }
+}
+
+// Tentukan Tab Utama Aktif (Jadwal vs Kuota)
+$active_tab = (isset($_GET['tab']) && $_GET['tab'] === 'kuota') ? 'kuota' : 'jadwal';
+if ($edit_data) {
+    $active_tab = 'jadwal';
+}
+
 $page_title = 'Kelola Gelombang Pendaftaran - Admin Babul Jannah';
 include __DIR__ . '/includes/head.php';
 ?>
@@ -491,8 +522,8 @@ include __DIR__ . '/includes/head.php';
                         <span>Lihat di Web</span>
                     </a>
 
-                    <!-- Add New Trigger Button (Scroll to form) -->
-                    <button type="button" onclick="focusFormGelombang()" class="inline-flex items-center space-x-1.5 bg-brand-primary hover:bg-brand-deep text-white font-bold py-2 px-3.5 rounded-xl text-xs shadow-xs hover:shadow transition transform active:scale-95" title="Tambah Gelombang Baru">
+                    <!-- Add New Trigger Button (Opens Pop-up Modal) -->
+                    <button type="button" onclick="openAddGelombangModal()" class="inline-flex items-center space-x-1.5 bg-brand-primary hover:bg-brand-deep text-white font-bold py-2 px-3.5 rounded-xl text-xs shadow-xs hover:shadow transition transform active:scale-95 cursor-pointer" title="Tambah Gelombang Baru">
                         <i class="fa-solid fa-plus text-xs"></i>
                         <span>Gelombang Baru</span>
                     </button>
@@ -602,9 +633,44 @@ include __DIR__ . '/includes/head.php';
             </div>
 
             <!-- ======================================================== -->
-            <!-- 2.1 TARGET KUOTA PENERIMAAN & KEBIJAKAN GELOMBANG -->
+            <!-- 2. NAVIGATION TAB SWITCHER (JADWAL GELOMBANG VS TARGET KUOTA) -->
             <!-- ======================================================== -->
-            <div class="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-5 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-xs">
+                <!-- Tab Buttons -->
+                <div class="flex items-center space-x-1.5 sm:space-x-2">
+                    <button type="button" onclick="switchMainTab('jadwal')" id="mainTabBtnJadwal" 
+                        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center space-x-2 <?= $active_tab === 'jadwal' ? 'bg-brand-primary text-white shadow-sm' : 'bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100' ?>">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Jadwal Gelombang</span>
+                        <span id="badgeTabCountJadwal" class="ml-1 text-[10px] font-black px-2 py-0.5 rounded-full <?= $active_tab === 'jadwal' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700' ?>">
+                            <?= count($gelombang_list) ?>
+                        </span>
+                    </button>
+                    <button type="button" onclick="switchMainTab('kuota')" id="mainTabBtnKuota" 
+                        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center space-x-2 <?= $active_tab === 'kuota' ? 'bg-brand-primary text-white shadow-sm' : 'bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100' ?>">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span>Target Kuota Santri</span>
+                        <span id="badgeTabCountKuota" class="ml-1 text-[10px] font-black px-2 py-0.5 rounded-full <?= $active_tab === 'kuota' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700' ?>">
+                            <?= $total_kuota_semua ?> Kursi
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Quick Action Button in Tab Bar -->
+                <div class="flex items-center space-x-2 self-end sm:self-auto">
+                    <button type="button" onclick="openAddGelombangModal()" 
+                        class="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-black shadow-xs hover:shadow-md transition cursor-pointer">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span>Tambah Gelombang</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- 2.1 TAB CONTENT: TARGET KUOTA PENERIMAAN SANTRI -->
+            <!-- ======================================================== -->
+            <div id="tabContentKuota" class="<?= $active_tab === 'kuota' ? '' : 'hidden' ?> space-y-4">
+                <div class="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-5 space-y-4">
                 
                 <!-- Section Header -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
@@ -852,193 +918,16 @@ include __DIR__ . '/includes/head.php';
                 </div>
 
             </div>
+        </div>
 
-            <!-- ======================================================== -->
-            <!-- 3. MAIN WORKSPACE: FORM GELOMBANG (KIRI) & DAFTAR (KANAN) -->
-            <!-- ======================================================== -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <!-- ======================================================== -->
+        <!-- 3. TAB CONTENT: JADWAL GELOMBANG (FULL WIDTH DUAL VIEW) -->
+        <!-- ======================================================== -->
+        <div id="tabContentJadwal" class="<?= $active_tab === 'jadwal' ? '' : 'hidden' ?> space-y-4">
+            <div class="w-full space-y-4">
                 
-                <!-- ======================================================== -->
-                <!-- A. FORM TAMBAH / EDIT GELOMBANG (4 / 12 COLS) -->
-                <!-- ======================================================== -->
-                <div id="formSection" class="lg:col-span-5 bg-white rounded-2xl shadow-xs border border-gray-200/80 p-5 space-y-4">
-                    
-                    <!-- Form Header -->
-                    <div class="flex items-center justify-between pb-3 border-b border-gray-100">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-8 h-8 rounded-xl <?= $edit_data ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-brand-primary/10 text-brand-primary' ?> flex items-center justify-center text-sm font-bold">
-                                <i class="fa-solid <?= $edit_data ? 'fa-pen-to-square' : 'fa-calendar-plus' ?>"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-sm font-extrabold text-gray-900">
-                                    <?= $edit_data ? 'Edit Jadwal Gelombang' : 'Tambah Gelombang Baru' ?>
-                                </h2>
-                                <p class="text-[11px] text-gray-500">
-                                    <?= $edit_data ? 'Perbarui jadwal & status gelombang' : 'Buat periode pendaftaran santri baru' ?>
-                                </p>
-                            </div>
-                        </div>
-
-                        <?php if ($edit_data): ?>
-                            <a href="gelombang.php" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-lg font-bold transition flex items-center space-x-1" title="Batalkan Mode Edit">
-                                <i class="fa-solid fa-xmark text-xs"></i>
-                                <span>Batal</span>
-                            </a>
-                        <?php endif; ?>
-                    </div>
-
-                    <?php if ($edit_data): ?>
-                        <div class="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-900 text-xs flex items-center space-x-2">
-                            <i class="fa-solid fa-info-circle text-blue-600"></i>
-                            <span>Sedang mengedit <strong><?= htmlspecialchars($edit_data['nama_gelombang']) ?></strong> (ID: <?= $edit_data['id'] ?>).</span>
-                        </div>
-                    <?php endif; ?>
-
-                    <form action="gelombang.php" method="POST" id="formGelombang" class="space-y-4">
-                        <?php if ($edit_data): ?>
-                            <input type="hidden" name="action" value="edit_gelombang">
-                            <input type="hidden" name="id" value="<?= $edit_data['id'] ?>">
-                        <?php else: ?>
-                            <input type="hidden" name="action" value="add_gelombang">
-                        <?php endif; ?>
-
-                        <!-- 1. Nama Gelombang & Tahun Ajaran -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label for="nama_gelombang" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
-                                    Nama Gelombang <span class="text-rose-500">*</span>
-                                </label>
-                                <input type="text" name="nama_gelombang" id="nama_gelombang" required placeholder="Contoh: Gelombang 1" value="<?= htmlspecialchars($edit_data['nama_gelombang'] ?? '') ?>" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white transition">
-                            </div>
-                            <div>
-                                <label for="tahun_ajaran" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
-                                    Tahun Ajaran <span class="text-rose-500">*</span>
-                                </label>
-                                <input type="text" name="tahun_ajaran" id="tahun_ajaran" required placeholder="Contoh: 2026/2027" value="<?= htmlspecialchars($edit_data['tahun_ajaran'] ?? '2026/2027') ?>" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white transition">
-                            </div>
-                        </div>
-
-                        <!-- 2. Jenjang yang Dibuka -->
-                        <div>
-                            <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
-                                Jenjang yang Dibuka <span class="text-rose-500">*</span>
-                            </label>
-                            <?php $current_jenjang = $edit_data['jenjang_dibuka'] ?? 'Semua'; ?>
-                            <div class="grid grid-cols-3 gap-2">
-                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center <?= ($current_jenjang === 'Semua') ? 'border-brand-primary bg-brand-primary/5 text-brand-primary font-black' : 'border-gray-200 bg-gray-50/70 text-gray-600 font-semibold hover:bg-gray-100' ?>">
-                                    <input type="radio" name="jenjang_dibuka" value="Semua" <?= ($current_jenjang === 'Semua') ? 'checked' : '' ?> class="sr-only">
-                                    <i class="fa-solid fa-school-flag text-xs mb-1"></i>
-                                    <span class="text-[10px]">Semua (SMP &amp; SMA)</span>
-                                </label>
-                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center <?= ($current_jenjang === 'Hanya SMP') ? 'border-teal-600 bg-teal-50 text-teal-800 font-black' : 'border-gray-200 bg-gray-50/70 text-gray-600 font-semibold hover:bg-gray-100' ?>">
-                                    <input type="radio" name="jenjang_dibuka" value="Hanya SMP" <?= ($current_jenjang === 'Hanya SMP') ? 'checked' : '' ?> class="sr-only">
-                                    <i class="fa-solid fa-school text-xs mb-1 text-teal-700"></i>
-                                    <span class="text-[10px]">Hanya SMP IT</span>
-                                </label>
-                                <label class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center <?= ($current_jenjang === 'Hanya SMA') ? 'border-indigo-600 bg-indigo-50 text-indigo-800 font-black' : 'border-gray-200 bg-gray-50/70 text-gray-600 font-semibold hover:bg-gray-100' ?>">
-                                    <input type="radio" name="jenjang_dibuka" value="Hanya SMA" <?= ($current_jenjang === 'Hanya SMA') ? 'checked' : '' ?> class="sr-only">
-                                    <i class="fa-solid fa-graduation-cap text-xs mb-1 text-indigo-700"></i>
-                                    <span class="text-[10px]">Hanya SMA IT</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 3. Periode Pendaftaran (Tanggal Buka s/d Tanggal Tutup) -->
-                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider flex items-center">
-                                    <i class="fa-solid fa-calendar-days text-brand-primary mr-1.5"></i> Periode Pendaftaran
-                                </span>
-                                <div class="flex items-center space-x-1">
-                                    <button type="button" onclick="setDurasiPendaftaran(30)" class="btn-preset" title="Set Tanggal Tutup 30 hari dari Buka">+30 Hari</button>
-                                    <button type="button" onclick="setDurasiPendaftaran(60)" class="btn-preset" title="Set Tanggal Tutup 60 hari dari Buka">+60 Hari</button>
-                                </div>
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-2.5">
-                                <div>
-                                    <label for="tgl_buka" class="block text-[10px] font-bold text-gray-600 mb-1">Tanggal Buka</label>
-                                    <input type="date" name="tgl_buka" id="tgl_buka" required value="<?= $edit_data['tgl_buka'] ?? '' ?>" class="w-full border border-gray-300 focus:border-brand-primary rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
-                                </div>
-                                <div>
-                                    <label for="tgl_tutup" class="block text-[10px] font-bold text-gray-600 mb-1">Tanggal Tutup</label>
-                                    <input type="date" name="tgl_tutup" id="tgl_tutup" required value="<?= $edit_data['tgl_tutup'] ?? '' ?>" class="w-full border border-gray-300 focus:border-brand-primary rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
-                                </div>
-                            </div>
-                            <p id="durasiPreview" class="text-[10px] text-gray-500 font-medium"></p>
-                        </div>
-
-                        <!-- 4. Agenda Seleksi & Pengumuman -->
-                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider flex items-center">
-                                    <i class="fa-solid fa-clipboard-check text-amber-700 mr-1.5"></i> Agenda Ujian &amp; Pengumuman
-                                </span>
-                                <div class="flex items-center space-x-1">
-                                    <button type="button" onclick="setJadwalUjianOtomatis()" class="btn-preset" title="Set Tanggal Ujian 7 hari setelah pendaftaran ditutup">Ujian +7h</button>
-                                    <button type="button" onclick="setJadwalPengumumanOtomatis()" class="btn-preset" title="Set Tanggal Pengumuman 7 hari setelah ujian">Hasil +7h</button>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-2.5">
-                                <div>
-                                    <label for="tgl_ujian" class="block text-[10px] font-bold text-indigo-900 mb-1">
-                                        <i class="fa-solid fa-file-pen text-indigo-600 mr-0.5"></i> Tanggal Ujian
-                                    </label>
-                                    <input type="date" name="tgl_ujian" id="tgl_ujian" required value="<?= $edit_data['tgl_ujian'] ?? '' ?>" class="w-full border border-gray-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
-                                </div>
-                                <div>
-                                    <label for="tgl_pengumuman" class="block text-[10px] font-bold text-purple-900 mb-1">
-                                        <i class="fa-solid fa-trophy text-purple-600 mr-0.5"></i> Pengumuman
-                                    </label>
-                                    <input type="date" name="tgl_pengumuman" id="tgl_pengumuman" required value="<?= $edit_data['tgl_pengumuman'] ?? '' ?>" class="w-full border border-gray-300 focus:border-purple-600 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 5. Status Publikasi -->
-                        <div>
-                            <label for="status" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
-                                Status Publikasi Gelombang <span class="text-rose-500">*</span>
-                            </label>
-                            <select name="status" id="status" class="w-full border border-gray-300 focus:border-brand-primary rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white">
-                                <option value="aktif" <?= ($edit_data && $edit_data['status'] === 'aktif') || (!$edit_data) ? 'selected' : '' ?>>
-                                    🟢 Aktif (Tampilkan di Jadwal &amp; Formulir Web)
-                                </option>
-                                <option value="nonaktif" <?= ($edit_data && $edit_data['status'] === 'nonaktif') ? 'selected' : '' ?>>
-                                    ⚪ Nonaktif (Sembunyikan dari Publik)
-                                </option>
-                            </select>
-                            <p class="text-[10px] text-gray-500 mt-1 leading-normal">
-                                Gelombang aktif akan otomatis dapat dipilih oleh calon santri saat periode pendaftaran telah tiba.
-                            </p>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="pt-2">
-                            <?php if ($edit_data): ?>
-                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2">
-                                    <i class="fa-solid fa-floppy-disk text-xs"></i>
-                                    <span>Simpan Perubahan Jadwal</span>
-                                </button>
-                            <?php else: ?>
-                                <button type="submit" class="w-full bg-brand-primary hover:bg-brand-deep text-white font-extrabold py-2.5 px-4 rounded-xl text-xs shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2">
-                                    <i class="fa-solid fa-plus text-xs"></i>
-                                    <span>Tambahkan Gelombang Baru</span>
-                                </button>
-                            <?php endif; ?>
-                        </div>
-
-                    </form>
-                </div>
-
-                <!-- ======================================================== -->
-                <!-- B. DAFTAR GELOMBANG: DUAL VIEW (KARTU & TABEL) (7 / 12 COLS) -->
-                <!-- ======================================================== -->
-                <div class="lg:col-span-7 space-y-4">
-                    
-                    <!-- Header List & View Switcher -->
-                    <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- Header List & View Switcher -->
+                <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex items-center space-x-2">
                             <div class="w-8 h-8 rounded-xl bg-teal-50 text-teal-800 flex items-center justify-center font-bold text-sm">
                                 <i class="fa-solid fa-timeline"></i>
@@ -1192,11 +1081,11 @@ include __DIR__ . '/includes/head.php';
 
                                     <!-- Action Buttons -->
                                     <div class="flex items-center space-x-1.5 self-end sm:self-auto">
-                                        <!-- Edit Button -->
-                                        <a href="gelombang.php?edit_id=<?= $g['id'] ?>#formSection" class="inline-flex items-center space-x-1 bg-white hover:bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-2xs" title="Edit Rincian Gelombang">
+                                        <!-- Edit Button (Opens Modal) -->
+                                        <button type="button" onclick='openEditGelombangModal(<?= htmlspecialchars(json_encode(format_gelombang_json($g)), ENT_QUOTES, "UTF-8") ?>)' class="inline-flex items-center space-x-1 bg-white hover:bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer" title="Edit Rincian Gelombang">
                                             <i class="fa-solid fa-pen-to-square text-xs"></i>
                                             <span>Edit</span>
-                                        </a>
+                                        </button>
 
                                         <!-- Toggle Status Button -->
                                         <?php if ($g['status'] === 'aktif'): ?>
@@ -1277,9 +1166,9 @@ include __DIR__ . '/includes/head.php';
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-center space-x-1.5">
-                                            <a href="gelombang.php?edit_id=<?= $g['id'] ?>" class="text-blue-600 hover:text-blue-800 p-1 font-bold" title="Edit">
+                                            <button type="button" onclick='openEditGelombangModal(<?= htmlspecialchars(json_encode(format_gelombang_json($g)), ENT_QUOTES, "UTF-8") ?>)' class="text-blue-600 hover:text-blue-800 p-1 font-bold cursor-pointer transition hover:scale-110" title="Edit Rincian Gelombang">
                                                 <i class="fa-solid fa-pen-to-square"></i>
-                                            </a>
+                                            </button>
                                             <a href="gelombang.php?action=toggle_status&id=<?= $g['id'] ?>&current=<?= $g['status'] ?>" class="text-gray-500 hover:text-gray-800 p-1" title="Toggle Aktif/Nonaktif">
                                                 <i class="fa-solid fa-power-off"></i>
                                             </a>
@@ -1298,12 +1187,207 @@ include __DIR__ . '/includes/head.php';
 
             </div>
 
-        </main>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- 4. POP-UP MODAL: TAMBAH & EDIT GELOMBANG -->
+        <!-- ======================================================== -->
+        <div id="modalGelombang" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modalGelombangTitle" role="dialog" aria-modal="true">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity duration-300" onclick="closeGelombangModal()"></div>
+
+            <!-- Modal Dialog Container -->
+            <div class="flex min-h-full items-center justify-center p-3 sm:p-4 text-center">
+                <div class="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full max-w-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+                    
+                    <!-- Modal Header -->
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/70">
+                        <div class="flex items-center space-x-3">
+                            <div id="modalIconContainer" class="w-10 h-10 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center text-base font-bold shadow-2xs">
+                                <i id="modalIcon" class="fa-solid fa-calendar-plus"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-gray-900" id="modalGelombangTitle">Tambah Gelombang Baru</h3>
+                                <p class="text-xs text-gray-500 mt-0.5" id="modalGelombangSubtitle">Buat periode pendaftaran santri baru</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="closeGelombangModal()" class="w-8 h-8 rounded-xl bg-white hover:bg-gray-100 text-gray-400 hover:text-gray-700 border border-gray-200 flex items-center justify-center transition cursor-pointer" title="Tutup Modal (ESC)">
+                            <i class="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- Modal Form -->
+                    <form action="gelombang.php" method="POST" id="formGelombangModal" class="p-6 space-y-4">
+                        <input type="hidden" name="action" id="modalAction" value="add_gelombang">
+                        <input type="hidden" name="id" id="modalGelombangId" value="">
+
+                        <!-- 1. Nama Gelombang & Tahun Ajaran -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div>
+                                <label for="modal_nama_gelombang" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                    Nama Gelombang <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="text" name="nama_gelombang" id="modal_nama_gelombang" required placeholder="Contoh: Gelombang 1" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white transition">
+                            </div>
+                            <div>
+                                <label for="modal_tahun_ajaran" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                    Tahun Ajaran <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="text" name="tahun_ajaran" id="modal_tahun_ajaran" required placeholder="Contoh: 2026/2027" value="2026/2027" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white transition">
+                            </div>
+                        </div>
+
+                        <!-- 2. Jenjang yang Dibuka -->
+                        <div>
+                            <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                Jenjang yang Dibuka <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label id="lblJenjangSemua" onclick="setModalJenjang('Semua')" class="flex flex-col items-center justify-center p-2 rounded-xl border border-brand-primary bg-brand-primary/5 text-brand-primary font-black cursor-pointer transition text-center hover:bg-gray-100">
+                                    <input type="radio" name="jenjang_dibuka" id="modalJenjangSemua" value="Semua" checked class="sr-only">
+                                    <i class="fa-solid fa-school-flag text-xs mb-1"></i>
+                                    <span class="text-[10px]">Semua (SMP &amp; SMA)</span>
+                                </label>
+                                <label id="lblJenjangSmp" onclick="setModalJenjang('Hanya SMP')" class="flex flex-col items-center justify-center p-2 rounded-xl border border-gray-200 bg-gray-50/70 text-gray-600 font-semibold cursor-pointer transition text-center hover:bg-gray-100">
+                                    <input type="radio" name="jenjang_dibuka" id="modalJenjangSmp" value="Hanya SMP" class="sr-only">
+                                    <i class="fa-solid fa-school text-xs mb-1 text-teal-700"></i>
+                                    <span class="text-[10px]">Hanya SMP IT</span>
+                                </label>
+                                <label id="lblJenjangSma" onclick="setModalJenjang('Hanya SMA')" class="flex flex-col items-center justify-center p-2 rounded-xl border border-gray-200 bg-gray-50/70 text-gray-600 font-semibold cursor-pointer transition text-center hover:bg-gray-100">
+                                    <input type="radio" name="jenjang_dibuka" id="modalJenjangSma" value="Hanya SMA" class="sr-only">
+                                    <i class="fa-solid fa-graduation-cap text-xs mb-1 text-indigo-700"></i>
+                                    <span class="text-[10px]">Hanya SMA IT</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 3. Periode Pendaftaran -->
+                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider flex items-center">
+                                    <i class="fa-solid fa-calendar-days text-brand-primary mr-1.5"></i> Periode Pendaftaran
+                                </span>
+                                <div class="flex items-center space-x-1">
+                                    <button type="button" onclick="setDurasiPendaftaran(30)" class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 transition shadow-2xs cursor-pointer">+30 Hari</button>
+                                    <button type="button" onclick="setDurasiPendaftaran(60)" class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 transition shadow-2xs cursor-pointer">+60 Hari</button>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label for="modal_tgl_buka" class="block text-[10px] font-bold text-gray-600 mb-1">Tanggal Buka</label>
+                                    <input type="date" name="tgl_buka" id="modal_tgl_buka" required class="w-full border border-gray-300 focus:border-brand-primary rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                                <div>
+                                    <label for="modal_tgl_tutup" class="block text-[10px] font-bold text-gray-600 mb-1">Tanggal Tutup</label>
+                                    <input type="date" name="tgl_tutup" id="modal_tgl_tutup" required class="w-full border border-gray-300 focus:border-brand-primary rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                            </div>
+                            <p id="modalDurasiPreview" class="text-[10px] text-gray-500 font-medium"></p>
+                        </div>
+
+                        <!-- 4. Agenda Seleksi & Pengumuman -->
+                        <div class="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-extrabold text-gray-700 uppercase tracking-wider flex items-center">
+                                    <i class="fa-solid fa-clipboard-check text-amber-700 mr-1.5"></i> Agenda Ujian &amp; Pengumuman
+                                </span>
+                                <div class="flex items-center space-x-1">
+                                    <button type="button" onclick="setJadwalUjianOtomatis()" class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 transition shadow-2xs cursor-pointer">Ujian +7h</button>
+                                    <button type="button" onclick="setJadwalPengumumanOtomatis()" class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 transition shadow-2xs cursor-pointer">Hasil +7h</button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label for="modal_tgl_ujian" class="block text-[10px] font-bold text-indigo-900 mb-1">
+                                        <i class="fa-solid fa-file-pen text-indigo-600 mr-0.5"></i> Tanggal Ujian
+                                    </label>
+                                    <input type="date" name="tgl_ujian" id="modal_tgl_ujian" required class="w-full border border-gray-300 focus:border-indigo-600 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                                <div>
+                                    <label for="modal_tgl_pengumuman" class="block text-[10px] font-bold text-purple-900 mb-1">
+                                        <i class="fa-solid fa-trophy text-purple-600 mr-0.5"></i> Pengumuman
+                                    </label>
+                                    <input type="date" name="tgl_pengumuman" id="modal_tgl_pengumuman" required class="w-full border border-gray-300 focus:border-purple-600 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-800 bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Status Publikasi -->
+                        <div>
+                            <label for="modal_status" class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider mb-1">
+                                Status Publikasi Gelombang <span class="text-rose-500">*</span>
+                            </label>
+                            <select name="status" id="modal_status" class="w-full border border-gray-300 focus:border-brand-primary rounded-xl px-3 py-2 text-xs font-bold text-gray-800 bg-white">
+                                <option value="aktif">🟢 Aktif (Tampilkan di Jadwal &amp; Formulir Web)</option>
+                                <option value="nonaktif">⚪ Nonaktif (Sembunyikan dari Publik)</option>
+                            </select>
+                            <p class="text-[10px] text-gray-500 mt-1 leading-normal">
+                                Gelombang aktif akan otomatis dapat dipilih oleh calon santri saat periode pendaftaran telah tiba.
+                            </p>
+                        </div>
+
+                        <!-- Modal Actions Footer -->
+                        <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-gray-100">
+                            <button type="button" onclick="closeGelombangModal()" class="px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 text-xs font-extrabold transition cursor-pointer">
+                                Batal
+                            </button>
+                            <button type="submit" id="btnSubmitModal" class="px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-deep text-white text-xs font-extrabold shadow-md hover:shadow-lg transition flex items-center space-x-2 cursor-pointer">
+                                <i id="btnSubmitModalIcon" class="fa-solid fa-plus text-xs"></i>
+                                <span id="btnSubmitModalText">Tambahkan Gelombang Baru</span>
+                            </button>
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
     </div>
 
     <!-- Client-side Interactive Script -->
     <script>
-        // 1. Switch View: Cards vs Table
+        // ========================================================
+        // 1. Main Tab Switching: Jadwal Gelombang vs Target Kuota
+        // ========================================================
+        function switchMainTab(tab) {
+            const tabJadwal = document.getElementById('tabContentJadwal');
+            const tabKuota = document.getElementById('tabContentKuota');
+            const btnJadwal = document.getElementById('mainTabBtnJadwal');
+            const btnKuota = document.getElementById('mainTabBtnKuota');
+            const badgeJadwal = document.getElementById('badgeTabCountJadwal');
+            const badgeKuota = document.getElementById('badgeTabCountKuota');
+
+            if (tab === 'jadwal') {
+                tabJadwal.classList.remove('hidden');
+                tabKuota.classList.add('hidden');
+                btnJadwal.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center space-x-2 bg-brand-primary text-white shadow-sm';
+                btnKuota.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center space-x-2 bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100';
+                if (badgeJadwal) badgeJadwal.className = 'ml-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-white/20 text-white';
+                if (badgeKuota) badgeKuota.className = 'ml-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-gray-200 text-gray-700';
+            } else {
+                tabJadwal.classList.add('hidden');
+                tabKuota.classList.remove('hidden');
+                btnKuota.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center space-x-2 bg-brand-primary text-white shadow-sm';
+                btnJadwal.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center space-x-2 bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100';
+                if (badgeKuota) badgeKuota.className = 'ml-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-white/20 text-white';
+                if (badgeJadwal) badgeJadwal.className = 'ml-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-gray-200 text-gray-700';
+            }
+
+            // Update URL query param without reload
+            try {
+                const url = new URL(window.location);
+                url.searchParams.set('tab', tab);
+                window.history.replaceState({}, '', url);
+            } catch (e) {}
+        }
+
+        // ========================================================
+        // 2. Switch View in Jadwal: Cards vs Table
+        // ========================================================
         function switchView(view) {
             const cards = document.getElementById('viewCards');
             const table = document.getElementById('viewTable');
@@ -1323,17 +1407,128 @@ include __DIR__ . '/includes/head.php';
             }
         }
 
-        // 2. Focus form smoothly
-        function focusFormGelombang() {
-            const formSec = document.getElementById('formSection');
-            if (formSec) {
-                formSec.scrollIntoView({ behavior: 'smooth' });
-                const inputNama = document.getElementById('nama_gelombang');
-                if (inputNama) inputNama.focus();
+        // ========================================================
+        // 3. Modal Gelombang: Add, Edit, Close, Keyboard Listeners
+        // ========================================================
+        const modal = document.getElementById('modalGelombang');
+
+        function setModalJenjang(val) {
+            const rSemua = document.getElementById('modalJenjangSemua');
+            const rSmp = document.getElementById('modalJenjangSmp');
+            const rSma = document.getElementById('modalJenjangSma');
+            const lSemua = document.getElementById('lblJenjangSemua');
+            const lSmp = document.getElementById('lblJenjangSmp');
+            const lSma = document.getElementById('lblJenjangSma');
+
+            const inactiveClass = 'flex flex-col items-center justify-center p-2 rounded-xl border border-gray-200 bg-gray-50/70 text-gray-600 font-semibold cursor-pointer transition text-center hover:bg-gray-100';
+
+            if (val === 'Hanya SMP') {
+                rSmp.checked = true;
+                lSmp.className = 'flex flex-col items-center justify-center p-2 rounded-xl border border-teal-600 bg-teal-50 text-teal-800 font-black cursor-pointer transition text-center hover:bg-gray-100';
+                lSemua.className = inactiveClass;
+                lSma.className = inactiveClass;
+            } else if (val === 'Hanya SMA') {
+                rSma.checked = true;
+                lSma.className = 'flex flex-col items-center justify-center p-2 rounded-xl border border-indigo-600 bg-indigo-50 text-indigo-800 font-black cursor-pointer transition text-center hover:bg-gray-100';
+                lSemua.className = inactiveClass;
+                lSmp.className = inactiveClass;
+            } else {
+                rSemua.checked = true;
+                lSemua.className = 'flex flex-col items-center justify-center p-2 rounded-xl border border-brand-primary bg-brand-primary/5 text-brand-primary font-black cursor-pointer transition text-center hover:bg-gray-100';
+                lSmp.className = inactiveClass;
+                lSma.className = inactiveClass;
             }
         }
 
-        // 3. Quick Date Presets
+        function openAddGelombangModal() {
+            // Pastikan tab jadwal aktif
+            switchMainTab('jadwal');
+
+            document.getElementById('modalAction').value = 'add_gelombang';
+            document.getElementById('modalGelombangId').value = '';
+            document.getElementById('modalGelombangTitle').textContent = 'Tambah Gelombang Baru';
+            document.getElementById('modalGelombangSubtitle').textContent = 'Buat periode pendaftaran santri baru';
+            
+            const iconContainer = document.getElementById('modalIconContainer');
+            iconContainer.className = 'w-10 h-10 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center text-base font-bold shadow-2xs';
+            document.getElementById('modalIcon').className = 'fa-solid fa-calendar-plus';
+
+            const btnSubmit = document.getElementById('btnSubmitModal');
+            btnSubmit.className = 'px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-deep text-white text-xs font-extrabold shadow-md hover:shadow-lg transition flex items-center space-x-2 cursor-pointer';
+            document.getElementById('btnSubmitModalIcon').className = 'fa-solid fa-plus text-xs';
+            document.getElementById('btnSubmitModalText').textContent = 'Tambahkan Gelombang Baru';
+
+            // Default Values
+            const nextIndex = <?= count($gelombang_list) + 1 ?>;
+            document.getElementById('modal_nama_gelombang').value = 'Gelombang ' + nextIndex;
+            document.getElementById('modal_tahun_ajaran').value = '<?= htmlspecialchars(function_exists('get_tahun_ajaran_aktif') ? get_tahun_ajaran_aktif() : '2026/2027') ?>';
+            
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            document.getElementById('modal_tgl_buka').value = todayStr;
+            document.getElementById('modal_tgl_tutup').value = addDays(todayStr, 30);
+            document.getElementById('modal_tgl_ujian').value = addDays(todayStr, 37);
+            document.getElementById('modal_tgl_pengumuman').value = addDays(todayStr, 44);
+            document.getElementById('modal_status').value = 'aktif';
+
+            setModalJenjang('Semua');
+            updateDurasiPreview();
+
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+            setTimeout(() => document.getElementById('modal_nama_gelombang').focus(), 50);
+        }
+
+        function openEditGelombangModal(data) {
+            // Pastikan tab jadwal aktif
+            switchMainTab('jadwal');
+
+            document.getElementById('modalAction').value = 'edit_gelombang';
+            document.getElementById('modalGelombangId').value = data.id;
+            document.getElementById('modalGelombangTitle').textContent = 'Edit Jadwal Gelombang';
+            document.getElementById('modalGelombangSubtitle').textContent = 'Perbarui jadwal & status ' + (data.nama_gelombang || '');
+
+            const iconContainer = document.getElementById('modalIconContainer');
+            iconContainer.className = 'w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200/80 flex items-center justify-center text-base font-bold shadow-2xs';
+            document.getElementById('modalIcon').className = 'fa-solid fa-pen-to-square';
+
+            const btnSubmit = document.getElementById('btnSubmitModal');
+            btnSubmit.className = 'px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md hover:shadow-lg transition flex items-center space-x-2 cursor-pointer';
+            document.getElementById('btnSubmitModalIcon').className = 'fa-solid fa-floppy-disk text-xs';
+            document.getElementById('btnSubmitModalText').textContent = 'Simpan Perubahan Jadwal';
+
+            // Populate form fields
+            document.getElementById('modal_nama_gelombang').value = data.nama_gelombang || '';
+            document.getElementById('modal_tahun_ajaran').value = data.tahun_ajaran || '';
+            document.getElementById('modal_tgl_buka').value = data.tgl_buka || '';
+            document.getElementById('modal_tgl_tutup').value = data.tgl_tutup || '';
+            document.getElementById('modal_tgl_ujian').value = data.tgl_ujian || '';
+            document.getElementById('modal_tgl_pengumuman').value = data.tgl_pengumuman || '';
+            document.getElementById('modal_status').value = data.status || 'aktif';
+
+            setModalJenjang(data.jenjang_dibuka || 'Semua');
+            updateDurasiPreview();
+
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+            setTimeout(() => document.getElementById('modal_nama_gelombang').focus(), 50);
+        }
+
+        function closeGelombangModal() {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        // Close on ESC key
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                closeGelombangModal();
+            }
+        });
+
+        // ========================================================
+        // 4. Quick Date Presets & Live Duration Preview
+        // ========================================================
         function addDays(dateStr, days) {
             if (!dateStr) return '';
             const d = new Date(dateStr);
@@ -1345,10 +1540,9 @@ include __DIR__ . '/includes/head.php';
         }
 
         function setDurasiPendaftaran(days) {
-            const buka = document.getElementById('tgl_buka');
-            const tutup = document.getElementById('tgl_tutup');
+            const buka = document.getElementById('modal_tgl_buka');
+            const tutup = document.getElementById('modal_tgl_tutup');
             if (!buka.value) {
-                // Jika buka kosong, set hari ini
                 const today = new Date();
                 buka.value = today.toISOString().split('T')[0];
             }
@@ -1357,8 +1551,8 @@ include __DIR__ . '/includes/head.php';
         }
 
         function setJadwalUjianOtomatis() {
-            const tutup = document.getElementById('tgl_tutup');
-            const ujian = document.getElementById('tgl_ujian');
+            const tutup = document.getElementById('modal_tgl_tutup');
+            const ujian = document.getElementById('modal_tgl_ujian');
             if (tutup.value) {
                 ujian.value = addDays(tutup.value, 7);
             } else {
@@ -1367,8 +1561,8 @@ include __DIR__ . '/includes/head.php';
         }
 
         function setJadwalPengumumanOtomatis() {
-            const ujian = document.getElementById('tgl_ujian');
-            const pengumuman = document.getElementById('tgl_pengumuman');
+            const ujian = document.getElementById('modal_tgl_ujian');
+            const pengumuman = document.getElementById('modal_tgl_pengumuman');
             if (ujian.value) {
                 pengumuman.value = addDays(ujian.value, 7);
             } else {
@@ -1377,9 +1571,9 @@ include __DIR__ . '/includes/head.php';
         }
 
         function updateDurasiPreview() {
-            const buka = document.getElementById('tgl_buka').value;
-            const tutup = document.getElementById('tgl_tutup').value;
-            const preview = document.getElementById('durasiPreview');
+            const buka = document.getElementById('modal_tgl_buka').value;
+            const tutup = document.getElementById('modal_tgl_tutup').value;
+            const preview = document.getElementById('modalDurasiPreview');
 
             if (buka && tutup) {
                 const diff = (new Date(tutup) - new Date(buka)) / (1000 * 60 * 60 * 24);
@@ -1393,23 +1587,22 @@ include __DIR__ . '/includes/head.php';
             }
         }
 
-        document.getElementById('tgl_buka').addEventListener('change', updateDurasiPreview);
-        document.getElementById('tgl_tutup').addEventListener('change', updateDurasiPreview);
-        updateDurasiPreview();
+        document.getElementById('modal_tgl_buka').addEventListener('change', updateDurasiPreview);
+        document.getElementById('modal_tgl_tutup').addEventListener('change', updateDurasiPreview);
 
         // Form Submit Validation
-        document.getElementById('formGelombang').addEventListener('submit', function(e) {
-            const buka = document.getElementById('tgl_buka').value;
-            const tutup = document.getElementById('tgl_tutup').value;
+        document.getElementById('formGelombangModal').addEventListener('submit', function(e) {
+            const buka = document.getElementById('modal_tgl_buka').value;
+            const tutup = document.getElementById('modal_tgl_tutup').value;
             if (buka && tutup && tutup < buka) {
                 e.preventDefault();
                 alert('Kesalahan: Tanggal tutup pendaftaran tidak boleh lebih awal dari tanggal buka!');
-                document.getElementById('tgl_tutup').focus();
+                document.getElementById('modal_tgl_tutup').focus();
             }
         });
 
         // ========================================================
-        // 4. Interactive Kuota Adjuster & Live Preview
+        // 5. Interactive Kuota Adjuster & Live Preview
         // ========================================================
         const totalDaftarSmp = <?= (int)$stat_jenjang['smp']['daftar'] ?>;
         const totalDaftarSma = <?= (int)$stat_jenjang['sma']['daftar'] ?>;
@@ -1442,6 +1635,9 @@ include __DIR__ . '/includes/head.php';
             // Update Badges & Labels
             const badgeTotal = document.getElementById('badgeTotalKuota');
             if (badgeTotal) badgeTotal.textContent = totalVal + ' Kursi';
+
+            const badgeTab = document.getElementById('badgeTabCountKuota');
+            if (badgeTab) badgeTab.textContent = totalVal + ' Kursi';
 
             const lblSmp = document.getElementById('labelKuotaSmpLive');
             if (lblSmp) lblSmp.textContent = smpVal;
@@ -1498,6 +1694,15 @@ include __DIR__ . '/includes/head.php';
         document.getElementById('inputKuotaSma').addEventListener('input', updateKuotaLivePreview);
         document.getElementById('checkTampilkanCatatan').addEventListener('change', updateKuotaLivePreview);
         document.getElementById('textareaCatatanKuota').addEventListener('input', updateKuotaLivePreview);
+
+        // ========================================================
+        // 6. Direct edit_id Auto-Open Handler (Backward Compatibility)
+        // ========================================================
+        <?php if ($edit_data): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            openEditGelombangModal(<?= json_encode(format_gelombang_json($edit_data)) ?>);
+        });
+        <?php endif; ?>
     </script>
 
 </body>
