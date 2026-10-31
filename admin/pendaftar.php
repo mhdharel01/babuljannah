@@ -426,6 +426,9 @@ $filter_jalur = sanitize($_GET['filter_jalur'] ?? '');
 $filter_gelombang = sanitize($_GET['filter_gelombang'] ?? '');
 $filter_bayar = sanitize($_GET['filter_bayar'] ?? '');
 $filter_seleksi = sanitize($_GET['filter_seleksi'] ?? '');
+$filter_jk = sanitize($_GET['filter_jk'] ?? '');
+$tgl_dari = sanitize($_GET['tgl_dari'] ?? '');
+$tgl_sampai = sanitize($_GET['tgl_sampai'] ?? '');
 
 $query_sql = "SELECT p.*, COALESCE(g.nama_gelombang, '-') as nama_gelombang FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE 1=1";
 $count_sql = "SELECT COUNT(*) FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE 1=1";
@@ -464,6 +467,37 @@ if (!empty($filter_gelombang)) {
     $query_sql .= $gel_clause;
     $count_sql .= $gel_clause;
     $params['gelombang'] = $filter_gelombang;
+}
+
+if (!empty($filter_jk)) {
+    if ($filter_jk === 'Laki-laki') {
+        $jk_clause = " AND (p.jk = 'Laki-laki' OR p.jk = 'L' OR p.jk LIKE 'Laki%')";
+        $query_sql .= $jk_clause;
+        $count_sql .= $jk_clause;
+    } elseif ($filter_jk === 'Perempuan') {
+        $jk_clause = " AND (p.jk = 'Perempuan' OR p.jk = 'P' OR p.jk LIKE 'Perem%')";
+        $query_sql .= $jk_clause;
+        $count_sql .= $jk_clause;
+    } else {
+        $jk_clause = " AND p.jk = :jk";
+        $query_sql .= $jk_clause;
+        $count_sql .= $jk_clause;
+        $params['jk'] = $filter_jk;
+    }
+}
+
+if (!empty($tgl_dari) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_dari)) {
+    $tgl_dari_clause = " AND p.created_at >= :tgl_dari";
+    $query_sql .= $tgl_dari_clause;
+    $count_sql .= $tgl_dari_clause;
+    $params['tgl_dari'] = $tgl_dari . ' 00:00:00';
+}
+
+if (!empty($tgl_sampai) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_sampai)) {
+    $tgl_sampai_clause = " AND p.created_at <= :tgl_sampai";
+    $query_sql .= $tgl_sampai_clause;
+    $count_sql .= $tgl_sampai_clause;
+    $params['tgl_sampai'] = $tgl_sampai . ' 23:59:59';
 }
 
 // Pagination Logic
@@ -505,7 +539,10 @@ function build_filter_query($overrides = []) {
         'filter_jalur' => $_GET['filter_jalur'] ?? '',
         'filter_gelombang' => $_GET['filter_gelombang'] ?? '',
         'filter_bayar' => $_GET['filter_bayar'] ?? '',
-        'filter_seleksi' => $_GET['filter_seleksi'] ?? ''
+        'filter_seleksi' => $_GET['filter_seleksi'] ?? '',
+        'filter_jk' => $_GET['filter_jk'] ?? '',
+        'tgl_dari' => $_GET['tgl_dari'] ?? '',
+        'tgl_sampai' => $_GET['tgl_sampai'] ?? ''
     ];
     $merged = array_merge($params, $overrides);
     return http_build_query(array_filter($merged, function($v) { return $v !== '' && $v !== null; }));
@@ -639,7 +676,7 @@ include 'includes/head.php';
             <div class="flex flex-wrap items-center gap-2">
                 <span class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mr-1">Filter Cepat:</span>
                 
-                <a href="pendaftar.php" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition <?= empty($filter_bayar) && empty($filter_seleksi) && empty($filter_jalur) ? 'bg-brand-primary text-white shadow-sm' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' ?>">
+                <a href="pendaftar.php" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition <?= empty($filter_bayar) && empty($filter_seleksi) && empty($filter_jalur) && empty($filter_gelombang) && empty($filter_jk) && empty($tgl_dari) && empty($tgl_sampai) && empty($search) ? 'bg-brand-primary text-white shadow-sm' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' ?>">
                     Semua Data (<?= $stat['total_semua'] ?? 0 ?>)
                 </a>
 
@@ -694,65 +731,139 @@ include 'includes/head.php';
                     </div>
                 </div>
 
-                <form action="pendaftar.php" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+                <form action="pendaftar.php" method="GET" class="space-y-4">
                     
-                    <!-- Search Input -->
-                    <div class="lg:col-span-2">
-                        <label for="search" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Kata Kunci Pencarian</label>
-                        <div class="relative">
-                            <input type="text" name="search" id="search" value="<?= htmlspecialchars($search) ?>" placeholder="Nama, No. Registrasi, NIK, Kota..." class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
-                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-xs"></i>
+                    <!-- Baris 1: Pencarian & Filter Status Utama -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 items-end">
+                        
+                        <!-- Search Input -->
+                        <div class="sm:col-span-2 lg:col-span-2">
+                            <label for="search" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Kata Kunci Pencarian</label>
+                            <div class="relative">
+                                <input type="text" name="search" id="search" value="<?= htmlspecialchars($search) ?>" placeholder="Nama, No. Registrasi, NIK, Kota..." class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-xs"></i>
+                            </div>
                         </div>
+
+                        <!-- Filter Jalur -->
+                        <div>
+                            <label for="filter_jalur" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Jalur / Jenjang</label>
+                            <select name="filter_jalur" id="filter_jalur" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                                <option value="">Semua Jalur</option>
+                                <option value="SMP IT" <?= $filter_jalur === 'SMP IT' ? 'selected' : '' ?>>SMP IT</option>
+                                <option value="SMA IT" <?= $filter_jalur === 'SMA IT' ? 'selected' : '' ?>>SMA IT</option>
+                                <option value="Kepondokan" <?= $filter_jalur === 'Kepondokan' ? 'selected' : '' ?>>Kepondokan</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter Gelombang -->
+                        <div>
+                            <label for="filter_gelombang" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Gelombang</label>
+                            <select name="filter_gelombang" id="filter_gelombang" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                                <option value="">Semua Gelombang</option>
+                                <?php foreach ($gelombang_list as $g): ?>
+                                    <option value="<?= $g['id'] ?>" <?= $filter_gelombang == $g['id'] ? 'selected' : '' ?>><?= htmlspecialchars($g['nama_gelombang'] . ' (' . $g['tahun_ajaran'] . ')') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Filter Status Bayar -->
+                        <div>
+                            <label for="filter_bayar" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Status Bayar</label>
+                            <select name="filter_bayar" id="filter_bayar" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                                <option value="">Semua Status</option>
+                                <option value="Belum Bayar" <?= $filter_bayar === 'Belum Bayar' ? 'selected' : '' ?>>Belum Bayar</option>
+                                <option value="Menunggu Verifikasi" <?= $filter_bayar === 'Menunggu Verifikasi' ? 'selected' : '' ?>>Menunggu Verifikasi</option>
+                                <option value="Lunas" <?= $filter_bayar === 'Lunas' ? 'selected' : '' ?>>Lunas</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter Status Seleksi -->
+                        <div>
+                            <label for="filter_seleksi" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Hasil Seleksi</label>
+                            <select name="filter_seleksi" id="filter_seleksi" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                                <option value="">Semua Hasil</option>
+                                <option value="Belum Seleksi" <?= $filter_seleksi === 'Belum Seleksi' ? 'selected' : '' ?>>Belum Seleksi</option>
+                                <option value="Lulus" <?= $filter_seleksi === 'Lulus' ? 'selected' : '' ?>>Lulus</option>
+                                <option value="Tidak Lulus" <?= $filter_seleksi === 'Tidak Lulus' ? 'selected' : '' ?>>Tidak Lulus</option>
+                            </select>
+                        </div>
+
                     </div>
 
-                    <!-- Filter Jalur -->
-                    <div>
-                        <label for="filter_jalur" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Jalur / Jenjang</label>
-                        <select name="filter_jalur" id="filter_jalur" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
-                            <option value="">Semua Jalur</option>
-                            <option value="SMP IT" <?= $filter_jalur === 'SMP IT' ? 'selected' : '' ?>>SMP IT</option>
-                            <option value="SMA IT" <?= $filter_jalur === 'SMA IT' ? 'selected' : '' ?>>SMA IT</option>
-                            <option value="Kepondokan" <?= $filter_jalur === 'Kepondokan' ? 'selected' : '' ?>>Kepondokan</option>
-                        </select>
+                    <!-- Baris 2: Filter Jenis Kelamin & Rentang Tanggal Pendaftaran -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 items-end pt-1">
+                        
+                        <!-- Filter Jenis Kelamin -->
+                        <div class="sm:col-span-2 lg:col-span-2">
+                            <label for="filter_jk" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5 flex items-center justify-between">
+                                <span>Jenis Kelamin</span>
+                                <span class="text-[10px] text-gray-400 font-semibold normal-case">Putra / Putri</span>
+                            </label>
+                            <div class="relative">
+                                <select name="filter_jk" id="filter_jk" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl pl-9 pr-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                                    <option value="">Semua Jenis Kelamin</option>
+                                    <option value="Laki-laki" <?= $filter_jk === 'Laki-laki' ? 'selected' : '' ?>>Laki-laki (Putra)</option>
+                                    <option value="Perempuan" <?= $filter_jk === 'Perempuan' ? 'selected' : '' ?>>Perempuan (Putri)</option>
+                                </select>
+                                <i class="fa-solid fa-venus-mars absolute left-3 top-3 text-gray-400 text-xs"></i>
+                            </div>
+                        </div>
+
+                        <!-- Tanggal Daftar Dari -->
+                        <div class="lg:col-span-2">
+                            <label for="tgl_dari" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5 flex items-center justify-between">
+                                <span>Tanggal Daftar (Dari)</span>
+                                <i class="fa-regular fa-calendar text-gray-400 text-xs"></i>
+                            </label>
+                            <input type="date" name="tgl_dari" id="tgl_dari" value="<?= htmlspecialchars($tgl_dari) ?>" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                        </div>
+
+                        <!-- Tanggal Daftar Sampai -->
+                        <div class="lg:col-span-2">
+                            <label for="tgl_sampai" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5 flex items-center justify-between">
+                                <span>Tanggal Daftar (Sampai)</span>
+                                <i class="fa-regular fa-calendar-check text-gray-400 text-xs"></i>
+                            </label>
+                            <input type="date" name="tgl_sampai" id="tgl_sampai" value="<?= htmlspecialchars($tgl_sampai) ?>" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
+                        </div>
+
                     </div>
 
-                    <!-- Filter Gelombang -->
-                    <div>
-                        <label for="filter_gelombang" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Gelombang</label>
-                        <select name="filter_gelombang" id="filter_gelombang" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
-                            <option value="">Semua Gelombang</option>
-                            <?php foreach ($gelombang_list as $g): ?>
-                                <option value="<?= $g['id'] ?>" <?= $filter_gelombang == $g['id'] ? 'selected' : '' ?>><?= htmlspecialchars($g['nama_gelombang'] . ' (' . $g['tahun_ajaran'] . ')') ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <!-- Action Bar: Status Filter Aktif + Tombol Reset & Terapkan -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-gray-100">
+                        <div class="text-xs text-gray-500 font-medium w-full sm:w-auto">
+                            <?php 
+                            $active_filter_count = 0;
+                            if (!empty($search)) $active_filter_count++;
+                            if (!empty($filter_jalur)) $active_filter_count++;
+                            if (!empty($filter_gelombang)) $active_filter_count++;
+                            if (!empty($filter_bayar)) $active_filter_count++;
+                            if (!empty($filter_seleksi)) $active_filter_count++;
+                            if (!empty($filter_jk)) $active_filter_count++;
+                            if (!empty($tgl_dari)) $active_filter_count++;
+                            if (!empty($tgl_sampai)) $active_filter_count++;
+                            ?>
+                            <?php if ($active_filter_count > 0): ?>
+                                <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs">
+                                    <i class="fa-solid fa-filter text-[10px]"></i>
+                                    <span><?= $active_filter_count ?> filter aktif diterapkan</span>
+                                </span>
+                            <?php else: ?>
+                                <span class="text-gray-400 text-xs">Pilih parameter filter di atas lalu klik Terapkan Filter</span>
+                            <?php endif; ?>
+                        </div>
 
-                    <!-- Filter Status Bayar -->
-                    <div>
-                        <label for="filter_bayar" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Status Bayar</label>
-                        <select name="filter_bayar" id="filter_bayar" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
-                            <option value="">Semua Status</option>
-                            <option value="Belum Bayar" <?= $filter_bayar === 'Belum Bayar' ? 'selected' : '' ?>>Belum Bayar</option>
-                            <option value="Menunggu Verifikasi" <?= $filter_bayar === 'Menunggu Verifikasi' ? 'selected' : '' ?>>Menunggu Verifikasi</option>
-                            <option value="Lunas" <?= $filter_bayar === 'Lunas' ? 'selected' : '' ?>>Lunas</option>
-                        </select>
-                    </div>
-
-                    <!-- Filter Status Seleksi -->
-                    <div>
-                        <label for="filter_seleksi" class="block text-xs font-extrabold text-gray-700 uppercase mb-1.5">Hasil Seleksi</label>
-                        <select name="filter_seleksi" id="filter_seleksi" class="w-full border border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-800 bg-gray-50 focus:bg-white transition focus:outline-none">
-                            <option value="">Semua Hasil</option>
-                            <option value="Belum Seleksi" <?= $filter_seleksi === 'Belum Seleksi' ? 'selected' : '' ?>>Belum Seleksi</option>
-                            <option value="Lulus" <?= $filter_seleksi === 'Lulus' ? 'selected' : '' ?>>Lulus</option>
-                            <option value="Tidak Lulus" <?= $filter_seleksi === 'Tidak Lulus' ? 'selected' : '' ?>>Tidak Lulus</option>
-                        </select>
-                    </div>
-
-                    <!-- Submit & Reset Buttons -->
-                    <div class="sm:col-span-2 lg:col-span-6 flex justify-end space-x-2 pt-2 border-t border-gray-100">
-                        <a href="pendaftar.php" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2 rounded-xl text-xs transition border border-gray-200">Reset</a>
-                        <button type="submit" class="bg-brand-primary hover:bg-brand-deep text-white font-bold px-5 py-2 rounded-xl text-xs shadow transition">Terapkan Filter</button>
+                        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                            <a href="pendaftar.php" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2 rounded-xl text-xs transition border border-gray-200 inline-flex items-center space-x-1">
+                                <i class="fa-solid fa-rotate-left text-xs"></i>
+                                <span>Reset</span>
+                            </a>
+                            <button type="submit" class="bg-brand-primary hover:bg-brand-deep text-white font-bold px-5 py-2 rounded-xl text-xs shadow transition inline-flex items-center space-x-1.5">
+                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                <span>Terapkan Filter</span>
+                            </button>
+                        </div>
                     </div>
 
                 </form>
@@ -845,9 +956,13 @@ include 'includes/head.php';
                                                                 <span class="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] px-1.5 py-0.2 rounded font-black">Pindahan</span>
                                                             <?php endif; ?>
                                                         </div>
-                                                        <div class="text-[10px] text-gray-500 font-medium mt-1 flex items-center space-x-2">
+                                                        <div class="text-[10px] text-gray-500 font-medium mt-1 flex items-center space-x-1.5 flex-wrap gap-y-0.5">
                                                             <span class="font-mono font-bold text-brand-primary bg-amber-50/80 px-1.5 py-0.5 rounded border border-brand-secondary/30"><?= htmlspecialchars($p['no_registrasi']) ?></span>
-                                                            <span>&bull;</span>
+                                                            <span class="text-gray-300">&bull;</span>
+                                                            <span class="font-bold <?= $is_putra ? 'text-blue-700 bg-blue-50 border border-blue-200' : 'text-pink-700 bg-pink-50 border border-pink-200' ?> px-1.5 py-0.2 rounded text-[9px]"><?= $is_putra ? 'Putra' : 'Putri' ?></span>
+                                                            <span class="text-gray-300">&bull;</span>
+                                                            <span title="Tanggal Mendaftar: <?= !empty($p['created_at']) ? date('d/m/Y H:i', strtotime($p['created_at'])) : '-' ?>"><i class="fa-regular fa-calendar-days text-[9px] text-gray-400 mr-0.5"></i> <?= !empty($p['created_at']) ? date('d/m/y', strtotime($p['created_at'])) : '-' ?></span>
+                                                            <span class="text-gray-300">&bull;</span>
                                                             <span><?= htmlspecialchars($p['kabupaten'] ?: 'Indonesia') ?></span>
                                                         </div>
                                                     </div>

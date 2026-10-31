@@ -26,6 +26,9 @@ $filter_bayar = sanitize($_GET['filter_bayar'] ?? '');
 $filter_seleksi = sanitize($_GET['filter_seleksi'] ?? '');
 $filter_gelombang = sanitize($_GET['filter_gelombang'] ?? '');
 $filter_hadir = sanitize($_GET['filter_hadir'] ?? '');
+$filter_jk = sanitize($_GET['filter_jk'] ?? '');
+$tgl_dari = sanitize($_GET['tgl_dari'] ?? '');
+$tgl_sampai = sanitize($_GET['tgl_sampai'] ?? '');
 
 $query_sql = "SELECT p.*, COALESCE(g.nama_gelombang, 'Gelombang Umum') as nama_gelombang, g.tahun_ajaran FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE 1=1";
 $params = [];
@@ -61,11 +64,47 @@ if ($filter_hadir === 'Hadir') {
     $query_sql .= " AND (p.status_kehadiran = 'Belum Hadir' OR p.status_kehadiran IS NULL)";
 }
 
+if (!empty($filter_jk)) {
+    if ($filter_jk === 'Laki-laki') {
+        $query_sql .= " AND (p.jk = 'Laki-laki' OR p.jk = 'L' OR p.jk LIKE 'Laki%')";
+    } elseif ($filter_jk === 'Perempuan') {
+        $query_sql .= " AND (p.jk = 'Perempuan' OR p.jk = 'P' OR p.jk LIKE 'Perem%')";
+    } else {
+        $query_sql .= " AND p.jk = :jk";
+        $params['jk'] = $filter_jk;
+    }
+}
+
+if (!empty($tgl_dari) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_dari)) {
+    $query_sql .= " AND p.created_at >= :tgl_dari";
+    $params['tgl_dari'] = $tgl_dari . ' 00:00:00';
+}
+
+if (!empty($tgl_sampai) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl_sampai)) {
+    $query_sql .= " AND p.created_at <= :tgl_sampai";
+    $params['tgl_sampai'] = $tgl_sampai . ' 23:59:59';
+}
+
 $query_sql .= " ORDER BY p.id DESC";
 
 $stmt = $db->prepare($query_sql);
 $stmt->execute($params);
 $pendaftar_list = $stmt->fetchAll();
+
+// Susun teks informasi filter untuk Subtitle Excel
+$filter_info_parts = [];
+if (!empty($filter_jalur)) $filter_info_parts[] = "Jalur: " . $filter_jalur;
+if (!empty($filter_bayar)) $filter_info_parts[] = "Bayar: " . $filter_bayar;
+if (!empty($filter_seleksi)) $filter_info_parts[] = "Seleksi: " . $filter_seleksi;
+if (!empty($filter_jk)) $filter_info_parts[] = "JK: " . ($filter_jk === 'Laki-laki' ? 'Laki-laki (Putra)' : ($filter_jk === 'Perempuan' ? 'Perempuan (Putri)' : $filter_jk));
+if (!empty($tgl_dari) && !empty($tgl_sampai)) {
+    $filter_info_parts[] = "Tgl: " . date('d/m/Y', strtotime($tgl_dari)) . " s/d " . date('d/m/Y', strtotime($tgl_sampai));
+} elseif (!empty($tgl_dari)) {
+    $filter_info_parts[] = "Tgl Mulai: " . date('d/m/Y', strtotime($tgl_dari));
+} elseif (!empty($tgl_sampai)) {
+    $filter_info_parts[] = "Tgl S/d: " . date('d/m/Y', strtotime($tgl_sampai));
+}
+$filter_subtitle = !empty($filter_info_parts) ? ' | Filter Aktif: [' . implode(' | ', $filter_info_parts) . ']' : '';
 
 // Set Header untuk Download Excel (.xls format XML Spreadsheet 2003 resmi)
 $filename = "data_psb_babul_jannah_" . date('Ymd_His') . ".xls";
@@ -263,7 +302,7 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
     <Cell ss:MergeAcross="10" ss:StyleID="Title"><Data ss:Type="String">LAPORAN DATA SANTRI BARU - PSB BABUL JANNAH</Data></Cell>
    </Row>
    <Row ss:Height="18">
-    <Cell ss:MergeAcross="10" ss:StyleID="SubTitle"><Data ss:Type="String">Diekspor pada: <?= date('d/m/Y H:i') ?> WIB | Total Data: <?= count($pendaftar_list) ?> Calon Santri</Data></Cell>
+    <Cell ss:MergeAcross="12" ss:StyleID="SubTitle"><Data ss:Type="String">Diekspor pada: <?= date('d/m/Y H:i') ?> WIB | Total Data: <?= count($pendaftar_list) ?> Calon Santri<?= safe_xml($filter_subtitle) ?></Data></Cell>
    </Row>
    <Row ss:Height="10"/>
 
