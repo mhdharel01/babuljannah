@@ -240,9 +240,9 @@ include 'includes/head.php';
 
         <!-- Scrollable Content Body -->
         <main class="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
-            <div class="max-w-5xl mx-auto space-y-6 pb-20">
+            <div class="max-w-5xl mx-auto space-y-6 pb-12">
 
-                <!-- Breadcrumb Navigation & Top Back Button Bar -->
+                <!-- Breadcrumb Navigation & Top Action Bar -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:px-5 rounded-2xl border border-gray-200/90 shadow-2xs">
                     <nav class="flex items-center space-x-2 text-xs font-semibold text-gray-500">
                         <a href="dashboard.php" class="hover:text-[#5C3E35] transition flex items-center">
@@ -253,10 +253,16 @@ include 'includes/head.php';
                         <span class="text-gray-300">/</span>
                         <span class="text-[#5C3E35] font-black">Input Santri Baru</span>
                     </nav>
-                    <a href="pendaftar.php" class="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#5C3E35]/10 hover:bg-[#5C3E35] text-[#5C3E35] hover:text-white transition shadow-2xs group w-fit border border-[#5C3E35]/20" title="Kembali ke Tabel Data Pendaftar">
-                        <i class="fa-solid fa-arrow-left text-xs group-hover:-translate-x-0.5 transition-transform"></i>
-                        <span>&larr; Kembali ke Data Pendaftar</span>
-                    </a>
+                    <div class="flex items-center space-x-2.5">
+                        <a href="pendaftar.php" class="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gray-100 hover:bg-gray-200 text-gray-700 transition shadow-2xs group border border-gray-200" title="Kembali ke Tabel Data Pendaftar">
+                            <i class="fa-solid fa-arrow-left text-xs text-gray-400 group-hover:-translate-x-0.5 transition-transform"></i>
+                            <span>Kembali</span>
+                        </a>
+                        <button type="button" onclick="document.getElementById('formTambahSantri').requestSubmit()" class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black bg-[#5C3E35] hover:bg-[#4A3029] text-white transition shadow-xs group cursor-pointer" title="Simpan formulir (atau tekan Ctrl+Enter)">
+                            <i class="fa-solid fa-floppy-disk text-xs group-hover:scale-110 transition-transform"></i>
+                            <span>Simpan Santri</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Alert Feedback -->
@@ -486,20 +492,26 @@ include 'includes/head.php';
                                     Jenis Kelamin <span class="text-red-500">*</span>
                                 </label>
                                 <div class="grid grid-cols-2 gap-3">
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="jk" value="Laki-laki" checked class="peer sr-only">
-                                        <div class="flex items-center space-x-2.5 p-3 rounded-xl border border-gray-200 bg-white peer-checked:border-blue-600 peer-checked:bg-blue-50/70 peer-checked:text-blue-900 transition">
-                                            <i class="fa-solid fa-mars text-blue-600 text-base"></i>
+                                    <!-- Santri Putra -->
+                                    <label class="relative block cursor-pointer select-none">
+                                        <input type="radio" name="jk" value="Laki-laki" checked class="peer sr-only absolute top-0 left-0">
+                                        <div class="flex items-center space-x-3 p-3.5 rounded-2xl border-2 border-gray-200 bg-white peer-checked:border-blue-600 peer-checked:bg-blue-50/70 peer-checked:text-blue-900 hover:border-gray-300 transition shadow-2xs">
+                                            <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 transition-colors">
+                                                <i class="fa-solid fa-mars text-sm"></i>
+                                            </div>
                                             <div>
                                                 <span class="block text-xs font-bold">Laki-laki</span>
                                                 <span class="block text-[10px] text-gray-400 font-medium">Santri Putra</span>
                                             </div>
                                         </div>
                                     </label>
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="jk" value="Perempuan" class="peer sr-only">
-                                        <div class="flex items-center space-x-2.5 p-3 rounded-xl border border-gray-200 bg-white peer-checked:border-pink-600 peer-checked:bg-pink-50/70 peer-checked:text-pink-900 transition">
-                                            <i class="fa-solid fa-venus text-pink-600 text-base"></i>
+                                    <!-- Santri Putri -->
+                                    <label class="relative block cursor-pointer select-none">
+                                        <input type="radio" name="jk" value="Perempuan" class="peer sr-only absolute top-0 left-0">
+                                        <div class="flex items-center space-x-3 p-3.5 rounded-2xl border-2 border-gray-200 bg-white peer-checked:border-pink-600 peer-checked:bg-pink-50/70 peer-checked:text-pink-900 hover:border-gray-300 transition shadow-2xs">
+                                            <div class="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0 transition-colors">
+                                                <i class="fa-solid fa-venus text-sm"></i>
+                                            </div>
                                             <div>
                                                 <span class="block text-xs font-bold">Perempuan</span>
                                                 <span class="block text-[10px] text-gray-400 font-medium">Santri Putri</span>
@@ -779,19 +791,26 @@ include 'includes/head.php';
                         </div>
                     </div>
 
-                    <!-- Bottom Sticky Action Bar -->
-                    <div class="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-gray-200/90 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div class="flex items-center space-x-3 text-xs text-gray-600 font-medium w-full sm:w-auto">
-                            <i class="fa-solid fa-shield-halved text-[#5C3E35] text-base flex-shrink-0"></i>
-                            <span class="truncate">Pastikan data NIK dan pilihan jenjang santri sudah sesuai sebelum disimpan.</span>
+                    <!-- Form Submission & Action Card -->
+                    <div class="bg-white rounded-3xl p-6 sm:p-7 border border-gray-200/90 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-5 mt-8">
+                        <div class="flex items-start sm:items-center space-x-3.5 w-full sm:w-auto">
+                            <div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center text-lg flex-shrink-0 border border-amber-500/20">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black text-[#2F2522] uppercase tracking-wide">Verifikasi Akhir Data Pendaftaran</h4>
+                                <p class="text-xs text-gray-500 mt-0.5">Pastikan data NIK 16 digit dan pilihan jenjang santri sudah sesuai sebelum disimpan.</p>
+                            </div>
                         </div>
                         <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
-                            <a href="pendaftar.php" class="flex-1 sm:flex-initial px-5 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-extrabold text-xs transition text-center shadow-xs">
-                                Batal & Kembali
+                            <a href="pendaftar.php" class="flex-1 sm:flex-initial px-5 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-extrabold text-xs transition text-center shadow-xs flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-arrow-left text-xs text-gray-400"></i>
+                                <span>Batal & Kembali</span>
                             </a>
-                            <button type="submit" id="btnSubmitForm" class="flex-1 sm:flex-initial px-7 py-3 rounded-xl bg-[#5C3E35] hover:bg-[#4A3029] text-white font-black text-xs shadow-md transition flex items-center justify-center space-x-2 group">
-                                <i class="fa-solid fa-floppy-disk group-hover:scale-110 transition-transform"></i>
+                            <button type="submit" id="btnSubmitForm" class="flex-1 sm:flex-initial px-7 py-3 rounded-xl bg-[#5C3E35] hover:bg-[#4A3029] text-white font-black text-xs shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2.5 group cursor-pointer" title="Tekan untuk menyimpan data santri (Shortcut: Ctrl + Enter)">
+                                <i class="fa-solid fa-floppy-disk text-xs group-hover:scale-110 transition-transform"></i>
                                 <span>Simpan Data Santri Baru</span>
+                                <span class="hidden lg:inline-block text-[10px] bg-white/20 px-2 py-0.5 rounded text-white/90 font-mono font-normal">Ctrl+Enter</span>
                             </button>
                         </div>
                     </div>
@@ -850,7 +869,7 @@ include 'includes/head.php';
             updateNikCounter();
             hitungUsia();
 
-            // Cegah double submit
+            // Cegah double submit & loading state
             const form = document.getElementById('formTambahSantri');
             const btnSubmit = document.getElementById('btnSubmitForm');
             if (form && btnSubmit) {
@@ -860,6 +879,16 @@ include 'includes/head.php';
                     btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Menyimpan...';
                 });
             }
+
+            // Keyboard Shortcut: Ctrl + Enter / Cmd + Enter untuk submit cepat
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    if (form && (!btnSubmit || !btnSubmit.disabled)) {
+                        e.preventDefault();
+                        form.requestSubmit();
+                    }
+                }
+            });
 
             // Wilayah Cascade
             const provSelect = document.getElementById('provinsi');

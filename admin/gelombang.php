@@ -1243,17 +1243,17 @@ include __DIR__ . '/includes/head.php';
                                 Jenjang yang Dibuka <span class="text-rose-500">*</span>
                             </label>
                             <div class="grid grid-cols-3 gap-2">
-                                <label id="lblJenjangSemua" onclick="setModalJenjang('Semua')" class="flex flex-col items-center justify-center p-2 rounded-xl border border-brand-primary bg-brand-primary/5 text-brand-primary font-black cursor-pointer transition text-center hover:bg-gray-100">
+                                <label id="lblJenjangSemua" onclick="setModalJenjang('Semua')" class="relative flex flex-col items-center justify-center p-2 rounded-xl border border-brand-primary bg-brand-primary/5 text-brand-primary font-black cursor-pointer select-none transition text-center hover:bg-gray-100">
                                     <input type="radio" name="jenjang_dibuka" id="modalJenjangSemua" value="Semua" checked class="sr-only">
                                     <i class="fa-solid fa-school-flag text-xs mb-1"></i>
                                     <span class="text-[10px]">Semua (SMP &amp; SMA)</span>
                                 </label>
-                                <label id="lblJenjangSmp" onclick="setModalJenjang('Hanya SMP')" class="flex flex-col items-center justify-center p-2 rounded-xl border border-gray-200 bg-gray-50/70 text-gray-600 font-semibold cursor-pointer transition text-center hover:bg-gray-100">
+                                <label id="lblJenjangSmp" onclick="setModalJenjang('Hanya SMP')" class="relative flex flex-col items-center justify-center p-2 rounded-xl border border-gray-200 bg-gray-50/70 text-gray-600 font-semibold cursor-pointer select-none transition text-center hover:bg-gray-100">
                                     <input type="radio" name="jenjang_dibuka" id="modalJenjangSmp" value="Hanya SMP" class="sr-only">
                                     <i class="fa-solid fa-school text-xs mb-1 text-teal-700"></i>
                                     <span class="text-[10px]">Hanya SMP IT</span>
                                 </label>
-                                <label id="lblJenjangSma" onclick="setModalJenjang('Hanya SMA')" class="flex flex-col items-center justify-center p-2 rounded-xl border border-gray-200 bg-gray-50/70 text-gray-600 font-semibold cursor-pointer transition text-center hover:bg-gray-100">
+                                <label id="lblJenjangSma" onclick="setModalJenjang('Hanya SMA')" class="relative flex flex-col items-center justify-center p-2 rounded-xl border border-gray-200 bg-gray-50/70 text-gray-600 font-semibold cursor-pointer select-none transition text-center hover:bg-gray-100">
                                     <input type="radio" name="jenjang_dibuka" id="modalJenjangSma" value="Hanya SMA" class="sr-only">
                                     <i class="fa-solid fa-graduation-cap text-xs mb-1 text-indigo-700"></i>
                                     <span class="text-[10px]">Hanya SMA IT</span>
