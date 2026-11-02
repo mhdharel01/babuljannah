@@ -140,7 +140,7 @@ arsort($prov_data_map);
 uasort($demo_tree, function($a, $b) { return $b['total'] <=> $a['total']; });
 
 // e. Top Kabupaten
-$stmt_kab = $db->query("SELECT kabupaten, COUNT(*) as jumlah FROM pendaftaran WHERE kabupaten IS NOT NULL AND kabupaten != '' GROUP BY kabupaten ORDER BY jumlah DESC LIMIT 50");
+$stmt_kab = $db->query("SELECT kabupaten, COALESCE(MAX(provinsi), '') as provinsi, COUNT(*) as jumlah FROM pendaftaran WHERE kabupaten IS NOT NULL AND kabupaten != '' GROUP BY kabupaten ORDER BY jumlah DESC LIMIT 50");
 $top_kab = $stmt_kab->fetchAll(PDO::FETCH_ASSOC);
 
 // Server-side Coordinate Enrichment for instant map rendering
@@ -161,6 +161,9 @@ if (file_exists($regencies_file)) {
         }
     }
 }
+// Override titik pusat Kota Dumai agar tepat di pusat kota
+$regency_coords_lookup['KOTA DUMAI'] = [1.6671, 101.4432];
+$regency_coords_lookup['DUMAI'] = [1.6671, 101.4432];
 
 foreach ($top_kab as &$kab_item) {
     $raw_k = strtoupper(trim($kab_item['kabupaten']));
@@ -173,8 +176,8 @@ foreach ($top_kab as &$kab_item) {
 }
 unset($kab_item);
 
-// f. Top Kecamatan
-$stmt_kec = $db->query("SELECT kecamatan, COUNT(*) as jumlah FROM pendaftaran WHERE kecamatan IS NOT NULL AND kecamatan != '' GROUP BY kecamatan ORDER BY jumlah DESC LIMIT 50");
+// f. Top Kecamatan (beserta kabupaten & provinsi induk untuk pemetaan koordinat)
+$stmt_kec = $db->query("SELECT kecamatan, COALESCE(MAX(kabupaten), '') as kabupaten, COALESCE(MAX(provinsi), '') as provinsi, COUNT(*) as jumlah FROM pendaftaran WHERE kecamatan IS NOT NULL AND kecamatan != '' GROUP BY kecamatan ORDER BY jumlah DESC LIMIT 100");
 $top_kec = $stmt_kec->fetchAll(PDO::FETCH_ASSOC);
 
 $extra_js = '
@@ -466,6 +469,7 @@ include 'includes/head.php';
                         <div class="flex space-x-1 bg-gray-100 p-1 rounded-xl text-xs font-bold self-start sm:self-auto border border-gray-200">
                             <button onclick="switchMapLevel('provinsi')" id="btn-map-provinsi" class="py-1 px-3 rounded-lg bg-white shadow-sm text-brand-primary transition-all font-bold">Provinsi</button>
                             <button onclick="switchMapLevel('kota')" id="btn-map-kota" class="py-1 px-3 rounded-lg text-gray-600 hover:text-gray-900 transition-all font-semibold">Kota/Kab</button>
+                            <button onclick="switchMapLevel('kecamatan')" id="btn-map-kecamatan" class="py-1 px-3 rounded-lg text-gray-600 hover:text-gray-900 transition-all font-semibold">Kecamatan</button>
                         </div>
                     </div>
 
@@ -504,21 +508,24 @@ include 'includes/head.php';
                             <?php else: ?>
                                 <?php foreach($demo_tree as $provName => $provInfo): ?>
                                     <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-200">
-                                        <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-gray-200">
-                                            <h3 class="font-extrabold text-brand-primary text-xs uppercase tracking-tight"><?= $provName ?></h3>
+                                        <div onclick="focusMapMarker('provinsi', '<?= htmlspecialchars(addslashes($provName)) ?>')" class="flex justify-between items-center mb-2 pb-1.5 border-b border-gray-200 cursor-pointer hover:opacity-80 transition" title="Klik untuk lihat di peta">
+                                            <h3 class="font-extrabold text-brand-primary text-xs uppercase tracking-tight flex items-center gap-1.5">
+                                                <i class="fa-solid fa-location-dot text-[10px]"></i>
+                                                <span><?= htmlspecialchars($provName) ?></span>
+                                            </h3>
                                             <span class="bg-brand-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full"><?= $provInfo['total'] ?> Santri</span>
                                         </div>
                                         <div class="space-y-2 mt-2">
                                             <?php foreach($provInfo['kabupaten'] as $kabName => $kabInfo): ?>
                                                 <div class="pl-2.5 border-l-2 border-brand-secondary">
-                                                    <div class="flex justify-between text-xs font-bold text-gray-800">
-                                                        <span><?= $kabName ?></span>
+                                                    <div onclick="focusMapMarker('kota', '<?= htmlspecialchars(addslashes($kabName)) ?>')" class="flex justify-between text-xs font-bold text-gray-800 cursor-pointer hover:text-brand-primary transition" title="Klik untuk fokus ke <?= htmlspecialchars($kabName) ?>">
+                                                        <span><?= htmlspecialchars($kabName) ?></span>
                                                         <span class="text-brand-primary font-extrabold"><?= $kabInfo['total'] ?></span>
                                                     </div>
                                                     <ul class="pl-2 space-y-0.5 mt-1">
                                                         <?php foreach($kabInfo['kecamatan'] as $kecName => $kecTotal): ?>
-                                                            <li class="flex justify-between text-[11px] text-gray-600 font-medium">
-                                                                <span>&bull; <?= $kecName ?></span>
+                                                            <li onclick="focusMapMarker('kecamatan', '<?= htmlspecialchars(addslashes($kecName)) ?>')" class="flex justify-between text-[11px] text-gray-600 font-medium cursor-pointer hover:text-brand-primary hover:font-bold transition py-0.5" title="Klik untuk fokus ke Kec. <?= htmlspecialchars($kecName) ?>">
+                                                                <span>&bull; <?= htmlspecialchars($kecName) ?></span>
                                                                 <span class="font-bold text-gray-700"><?= $kecTotal ?></span>
                                                             </li>
                                                         <?php endforeach; ?>
@@ -539,8 +546,11 @@ include 'includes/head.php';
                                 </div>
                             <?php else: ?>
                                 <?php foreach($top_kab as $kab): ?>
-                                <div class="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 transition">
-                                    <span class="text-xs font-bold text-gray-800 uppercase"><?= $kab['kabupaten'] ?></span>
+                                <div onclick="focusMapMarker('kota', '<?= htmlspecialchars(addslashes($kab['kabupaten'])) ?>')" class="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 hover:bg-emerald-50/60 hover:border-emerald-300 cursor-pointer transition group" title="Klik untuk lihat titik lokasi di peta">
+                                    <span class="text-xs font-bold text-gray-800 group-hover:text-emerald-800 uppercase flex items-center gap-2">
+                                        <i class="fa-solid fa-location-dot text-emerald-600 text-[11px]"></i>
+                                        <span><?= htmlspecialchars($kab['kabupaten']) ?></span>
+                                    </span>
                                     <span class="bg-brand-secondary/20 text-brand-primary text-xs font-black px-2.5 py-0.5 rounded-full border border-brand-secondary/40"><?= $kab['jumlah'] ?></span>
                                 </div>
                                 <?php endforeach; ?>
@@ -555,8 +565,16 @@ include 'includes/head.php';
                                 </div>
                             <?php else: ?>
                                 <?php foreach($top_kec as $kec): ?>
-                                <div class="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 transition">
-                                    <span class="text-xs font-bold text-gray-800 uppercase"><?= $kec['kecamatan'] ?></span>
+                                <div onclick="focusMapMarker('kecamatan', '<?= htmlspecialchars(addslashes($kec['kecamatan'])) ?>')" class="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 hover:bg-amber-50/70 hover:border-amber-300 cursor-pointer transition group" title="Klik untuk lihat titik kecamatan di peta">
+                                    <div>
+                                        <span class="text-xs font-bold text-gray-800 group-hover:text-amber-900 uppercase flex items-center gap-1.5">
+                                            <i class="fa-solid fa-map-pin text-amber-600 text-[11px]"></i>
+                                            <span><?= htmlspecialchars($kec['kecamatan']) ?></span>
+                                        </span>
+                                        <?php if (!empty($kec['kabupaten'])): ?>
+                                            <span class="text-[10px] text-gray-500 font-semibold block pl-4"><?= htmlspecialchars($kec['kabupaten']) ?></span>
+                                        <?php endif; ?>
+                                    </div>
                                     <span class="bg-[#5C3E35]/10 text-brand-primary text-xs font-black px-2.5 py-0.5 rounded-full border border-[#5C3E35]/20"><?= $kec['jumlah'] ?></span>
                                 </div>
                                 <?php endforeach; ?>
@@ -878,9 +896,10 @@ include 'includes/head.php';
             });
         }
 
-        // 4. Map Demografi menggunakan Leaflet
+        // 4. Map Demografi menggunakan Leaflet (3 Level: Provinsi, Kota/Kab, Kecamatan)
         const provDataMap = <?= json_encode($prov_data_map) ?>;
         const topKabMapData = <?= json_encode($top_kab) ?>;
+        const topKecMapData = <?= json_encode($top_kec) ?>;
         
         // Koordinat 38 Provinsi di Indonesia
         const provCoords = {
@@ -931,8 +950,99 @@ include 'includes/head.php';
             "PAPUA BARAT DAYA": [-1.0000, 132.0000]
         };
 
-        let kabCoordsCache = {};
+        // Koordinat Presisi Kecamatan (Fokus Kota Dumai, Riau, dan sekitarnya)
+        const kecCoords = {
+            // 1. Kota Dumai (7 Kecamatan)
+            "DUMAI BARAT": [1.6695, 101.4190],
+            "DUMAI TIMUR": [1.6625, 101.4675],
+            "DUMAI SELATAN": [1.6440, 101.4345],
+            "DUMAI KOTA": [1.6750, 101.4460],
+            "BUKIT KAPUR": [1.5650, 101.3980],
+            "MEDANG KAMPAI": [1.6310, 101.5640],
+            "SUNGAI SEMBILAN": [1.8550, 101.3120],
+            // 2. Kabupaten Bengkalis & Duri
+            "MANDAU": [1.2611, 101.2136],
+            "BATHIN SOLAPAN": [1.3250, 101.1680],
+            "PINGGIR": [1.0960, 101.2640],
+            "TALANG MUANDAU": [1.2180, 101.3750],
+            "BUKIT BATU": [1.4720, 101.9950],
+            "SIAK KECIL": [1.2290, 102.0950],
+            "BANDAR LAKSAMANA": [1.5680, 101.7850],
+            "BENGKALIS": [1.4800, 102.1300],
+            "BANTAN": [1.5450, 102.2750],
+            "RUPAT": [1.8350, 101.6650],
+            "RUPAT UTARA": [2.0750, 101.5850],
+            // 3. Kabupaten Rokan Hilir
+            "BANGKO": [2.1580, 100.8160],
+            "BAGAN SINEMBAH": [1.7050, 100.3980],
+            "BAGAN SINEMBAH RAYA": [1.7650, 100.4650],
+            "BALAI JAYA": [1.6650, 100.5550],
+            "TANAH PUTIH": [1.5950, 100.9950],
+            "TANAH PUTIH TANJUNG MELAWAN": [1.7250, 101.0550],
+            "PUJUD": [1.4750, 100.6750],
+            "TANJUNG MEDAN": [1.4150, 100.5650],
+            "KUBU": [1.9950, 100.6150],
+            "KUBU BABUSSALAM": [2.0550, 100.6650],
+            "BANGKO PUSAKO": [1.6750, 100.7850],
+            "SIMPANG KANAN": [1.8350, 100.3650],
+            "PASIR LIMAU KAPAS": [2.1650, 100.4150],
+            "SINABOI": [2.2550, 101.0250],
+            "BATU HAMPAR": [1.9650, 100.9350],
+            "PEKAITAN": [2.0450, 100.7350],
+            "RANTAU KOPAR": [1.4650, 101.0850],
+            "RIMBA MELINTANG": [1.8450, 100.8850],
+            // 4. Kota Pekanbaru
+            "TAMPAN": [0.4650, 101.3850],
+            "BINAWIDYA": [0.4650, 101.3850],
+            "TUAHMADANI": [0.4520, 101.3960],
+            "MARPOYAN DAMAI": [0.4720, 101.4380],
+            "BUKIT RAYA": [0.4680, 101.4650],
+            "TENAYAN RAYA": [0.4950, 101.5250],
+            "KULIM": [0.4680, 101.5280],
+            "PAYUNG SEKAKI": [0.5250, 101.4080],
+            "SUKAJADI": [0.5180, 101.4380],
+            "PEKANBARU KOTA": [0.5280, 101.4520],
+            "SAIL": [0.5120, 101.4620],
+            "LIMAPULUH": [0.5380, 101.4650],
+            "SENAPELAN": [0.5360, 101.4380],
+            "RUMBAI": [0.5850, 101.4350],
+            "RUMBAI BARAT": [0.6150, 101.3850],
+            "RUMBAI TIMUR": [0.5950, 101.4850],
+            // 5. Kabupaten Siak, Kampar, Pelalawan, Rokan Hulu, Inhu, Inhil, Meranti, Kuansing
+            "MINAS": [0.7550, 101.4450],
+            "KANDIS": [0.9650, 101.2450],
+            "TUALANG": [0.6650, 101.6050],
+            "SIAK": [0.7950, 102.0450],
+            "SUNGAI APIT": [1.1150, 102.2750],
+            "DAYUN": [0.6850, 102.0150],
+            "KERINCI KANAN": [0.4850, 101.8150],
+            "SABAK AUH": [1.0550, 102.0950],
+            "BUNGA RAYA": [0.9150, 102.0350],
+            "BANGKINANG": [0.3350, 101.0250],
+            "BANGKINANG KOTA": [0.3350, 101.0250],
+            "TAMBANG": [0.4450, 101.3150],
+            "SIAK HULU": [0.4150, 101.4850],
+            "TAPUNG": [0.6250, 101.0850],
+            "TAPUNG HULU": [0.7550, 100.8450],
+            "TAPUNG HILIR": [0.7850, 101.1850],
+            "PANGKALAN KERINCI": [0.4050, 101.8550],
+            "UJUNG BATU": [0.7150, 100.5350],
+            "RAMBAH": [0.8550, 100.3150],
+            "KEPENUHAN": [1.0850, 100.6450],
+            "RENGAT": [-0.3750, 102.5450],
+            "SEBERIDA": [-0.5850, 102.4250],
+            "TEMBILAHAN": [-0.3150, 103.1550],
+            "TEBING TINGGI": [1.0150, 102.7150],
+            "KUANTAN TENGAH": [-0.5250, 101.5550]
+        };
+
+        let kabCoordsCache = {
+            "KOTA DUMAI": [1.6671, 101.4432],
+            "DUMAI": [1.6671, 101.4432]
+        };
+        let kabCoordsLoaded = false;
         let currentMarkers = [];
+        let markerLookup = {};
         let mapLevelActive = 'provinsi';
 
         const map = L.map('provMap', {
@@ -948,7 +1058,7 @@ include 'includes/head.php';
         function normalizeWilayahName(str) {
             if (!str) return '';
             return str.toUpperCase()
-                .replace(/^(KABUPATEN|KAB\.|KOTA ADMINISTRASI|KOTA ADM\.|KOTA|KODYA)\s+/i, '')
+                .replace(/^(KABUPATEN|KAB\.|KOTA ADMINISTRASI|KOTA ADM\.|KOTA|KODYA|KECAMATAN|KEC\.)\s+/i, '')
                 .replace(/\s+/g, ' ')
                 .trim();
         }
@@ -956,10 +1066,11 @@ include 'includes/head.php';
         function clearMarkers() {
             currentMarkers.forEach(m => map.removeLayer(m));
             currentMarkers = [];
+            markerLookup = {};
         }
 
         async function ensureKabCoordsLoaded() {
-            if (Object.keys(kabCoordsCache).length > 0) return;
+            if (kabCoordsLoaded) return;
             try {
                 const res = await fetch('api_wilayah.php?action=regencies');
                 if (res.ok) {
@@ -970,9 +1081,10 @@ include 'includes/head.php';
                             const lng = parseFloat(k.longitude);
                             const rawName = (k.name || '').toUpperCase().trim();
                             const cleanName = normalizeWilayahName(rawName);
-                            kabCoordsCache[rawName] = [lat, lng];
-                            if (cleanName) kabCoordsCache[cleanName] = [lat, lng];
+                            if (rawName !== 'KOTA DUMAI') kabCoordsCache[rawName] = [lat, lng];
+                            if (cleanName && cleanName !== 'DUMAI') kabCoordsCache[cleanName] = [lat, lng];
                         });
+                        kabCoordsLoaded = true;
                     }
                 }
             } catch (err) {
@@ -980,7 +1092,36 @@ include 'includes/head.php';
             }
         }
 
-        async function renderMapLevel(level) {
+        // Ambil koordinat Kecamatan (Presisi -> Cache -> Induk Kabupaten + Offset -> Geocode)
+        function resolveKecCoords(kecName, kabName, provName, idx) {
+            const rawKec = (kecName || '').toUpperCase().trim();
+            const cleanKec = normalizeWilayahName(rawKec);
+
+            if (kecCoords[rawKec]) return kecCoords[rawKec];
+            if (kecCoords[cleanKec]) return kecCoords[cleanKec];
+
+            // Cek localStorage cache hasil geocode sebelumnya
+            try {
+                const cached = localStorage.getItem('bj_kec_coord_' + cleanKec);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed) && parsed.length === 2) return parsed;
+                }
+            } catch (e) {}
+
+            // Fallback instan ke koordinat Kabupaten/Kota induk (dengan sedikit offset melingkar agar titik tidak bertumpuk)
+            const rawKab = (kabName || '').toUpperCase().trim();
+            const cleanKab = normalizeWilayahName(rawKab);
+            const rawProv = (provName || '').toUpperCase().trim();
+            const cleanProv = normalizeWilayahName(rawProv);
+
+            const baseCoord = kabCoordsCache[rawKab] || kabCoordsCache[cleanKab] || provCoords[rawProv] || provCoords[cleanProv] || [1.6671, 101.4432];
+            const angle = (idx * 137.5) * (Math.PI / 180);
+            const dist = 0.018 * (1 + Math.floor(idx / 6) * 0.5);
+            return [baseCoord[0] + Math.sin(angle) * dist, baseCoord[1] + Math.cos(angle) * dist];
+        }
+
+        async function renderMapLevel(level, autoFit = true) {
             mapLevelActive = level;
             clearMarkers();
             
@@ -993,13 +1134,13 @@ include 'includes/head.php';
                     const cleanName = normalizeWilayahName(provName);
                     const coords = provCoords[provName] || provCoords[cleanName];
                     if (coords) {
-                        const radius = Math.min(22, Math.max(8, 7 + (count / maxSantri) * 15));
+                        const radius = Math.min(22, Math.max(9, 8 + (count / maxSantri) * 14));
                         const circle = L.circleMarker(coords, {
                             color: '#3E2723',
                             fillColor: '#A17A6F',
                             fillOpacity: 0.85,
                             radius: radius,
-                            weight: 2
+                            weight: 2.5
                         }).addTo(map);
 
                         circle.bindTooltip(`<b>${provName}</b><br>${count} Santri`, {
@@ -1017,6 +1158,8 @@ include 'includes/head.php';
                             </div>
                         `);
                         currentMarkers.push(circle);
+                        markerLookup[provName.toUpperCase().trim()] = circle;
+                        markerLookup[cleanName] = circle;
                     }
                 }
             } else if (level === 'kota') {
@@ -1035,13 +1178,13 @@ include 'includes/head.php';
                         : (kabCoordsCache[rawName] || kabCoordsCache[cleanName] || null);
                     
                     if (coords) {
-                        const radius = Math.min(20, Math.max(7, 6 + (count / maxSantri) * 13));
+                        const radius = Math.min(20, Math.max(9, 7 + (count / maxSantri) * 13));
                         const circle = L.circleMarker(coords, {
                             color: '#1B5E20',
                             fillColor: '#2E7D32',
                             fillOpacity: 0.85,
                             radius: radius,
-                            weight: 2
+                            weight: 2.5
                         }).addTo(map);
 
                         circle.bindTooltip(`<b>${d.kabupaten}</b><br>${count} Santri`, {
@@ -1059,41 +1202,117 @@ include 'includes/head.php';
                             </div>
                         `);
                         currentMarkers.push(circle);
+                        markerLookup[rawName] = circle;
+                        markerLookup[cleanName] = circle;
+                    }
+                });
+            } else if (level === 'kecamatan') {
+                await ensureKabCoordsLoaded();
+
+                const counts = topKecMapData.map(v => parseInt(v.jumlah));
+                const maxSantri = counts.length > 0 ? Math.max(...counts) : 1;
+
+                topKecMapData.forEach((d, idx) => {
+                    const count = parseInt(d.jumlah);
+                    const rawName = (d.kecamatan || '').toUpperCase().trim();
+                    const cleanName = normalizeWilayahName(rawName);
+                    const kabLabel = d.kabupaten ? d.kabupaten : 'Indonesia';
+                    
+                    const coords = resolveKecCoords(d.kecamatan, d.kabupaten, d.provinsi, idx);
+                    
+                    if (coords) {
+                        const radius = Math.min(20, Math.max(9, 8 + (count / maxSantri) * 12));
+                        const circle = L.circleMarker(coords, {
+                            color: '#92400E',
+                            fillColor: '#D97706',
+                            fillOpacity: 0.88,
+                            radius: radius,
+                            weight: 2.5
+                        }).addTo(map);
+
+                        circle.bindTooltip(`<b>Kec. ${d.kecamatan}</b><br><span class="text-[10px] text-gray-600">${kabLabel}</span><br><b>${count} Santri</b>`, {
+                            direction: 'top',
+                            offset: [0, -radius]
+                        });
+
+                        circle.bindPopup(`
+                            <div class="text-center font-sans p-1.5">
+                                <span class="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider block">Kecamatan Asal</span>
+                                <b class="text-gray-900 text-sm block mt-0.5">KEC. ${d.kecamatan}</b>
+                                <span class="text-[11px] font-semibold text-gray-500 block">${kabLabel}</span>
+                                <div class="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black bg-amber-600 text-white shadow-sm">
+                                    <i class="fa-solid fa-map-pin mr-1.5"></i> ${count} Santri
+                                </div>
+                            </div>
+                        `);
+                        currentMarkers.push(circle);
+                        markerLookup[rawName] = circle;
+                        markerLookup[cleanName] = circle;
                     }
                 });
             }
 
-            // Auto fit bounds
-            if (currentMarkers.length > 0) {
-                if (currentMarkers.length === 1) {
-                    const singleCoord = currentMarkers[0].getLatLng();
-                    map.setView(singleCoord, 8);
+            // Auto fit bounds sesuai level peta
+            if (autoFit) {
+                if (currentMarkers.length > 0) {
+                    if (currentMarkers.length === 1) {
+                        const singleCoord = currentMarkers[0].getLatLng();
+                        const targetZoom = level === 'kecamatan' ? 12 : (level === 'kota' ? 10 : 7);
+                        map.setView(singleCoord, targetZoom);
+                    } else {
+                        const group = L.featureGroup(currentMarkers);
+                        const maxZoomLevel = level === 'kecamatan' ? 12 : (level === 'kota' ? 11 : 9);
+                        map.fitBounds(group.getBounds().pad(0.25), { maxZoom: maxZoomLevel });
+                    }
                 } else {
-                    const group = L.featureGroup(currentMarkers);
-                    map.fitBounds(group.getBounds().pad(0.25), { maxZoom: 10 });
+                    map.setView([1.6671, 101.4432], 7);
                 }
-            } else {
-                map.setView([1.6671, 101.4432], 7);
             }
 
             setTimeout(() => { map.invalidateSize(); }, 150);
         }
 
-        function switchMapLevel(level) {
-            const btnProv = document.getElementById('btn-map-provinsi');
-            const btnKota = document.getElementById('btn-map-kota');
-            if (level === 'provinsi') {
-                btnProv.classList.add('bg-white', 'shadow-sm', 'text-brand-primary', 'font-bold');
-                btnProv.classList.remove('text-gray-600', 'font-semibold');
-                btnKota.classList.add('text-gray-600', 'font-semibold');
-                btnKota.classList.remove('bg-white', 'shadow-sm', 'text-brand-primary', 'font-bold');
-            } else {
-                btnKota.classList.add('bg-white', 'shadow-sm', 'text-brand-primary', 'font-bold');
-                btnKota.classList.remove('text-gray-600', 'font-semibold');
-                btnProv.classList.add('text-gray-600', 'font-semibold');
-                btnProv.classList.remove('bg-white', 'shadow-sm', 'text-brand-primary', 'font-bold');
+        function updateMapButtonsUI(level) {
+            const btnMap = {
+                'provinsi': document.getElementById('btn-map-provinsi'),
+                'kota': document.getElementById('btn-map-kota'),
+                'kecamatan': document.getElementById('btn-map-kecamatan')
+            };
+            Object.entries(btnMap).forEach(([key, btn]) => {
+                if (!btn) return;
+                if (key === level) {
+                    btn.classList.add('bg-white', 'shadow-sm', 'text-brand-primary', 'font-bold');
+                    btn.classList.remove('text-gray-600', 'font-semibold');
+                } else {
+                    btn.classList.remove('bg-white', 'shadow-sm', 'text-brand-primary', 'font-bold');
+                    btn.classList.add('text-gray-600', 'font-semibold');
+                }
+            });
+        }
+
+        function switchMapLevel(level, syncRightTab = true) {
+            updateMapButtonsUI(level);
+            renderMapLevel(level, true);
+            if (syncRightTab) {
+                const targetTab = level === 'kecamatan' ? 'tab-kec' : (level === 'kota' ? 'tab-kota' : 'tab-hierarki');
+                switchTab(targetTab, false);
             }
-            renderMapLevel(level);
+        }
+
+        // Klik pada item di daftar kanan -> otomatis tampilkan & fokus ke titik marker di peta
+        async function focusMapMarker(level, name) {
+            if (mapLevelActive !== level) {
+                updateMapButtonsUI(level);
+                await renderMapLevel(level, false);
+            }
+            const rawKey = (name || '').toUpperCase().trim();
+            const cleanKey = normalizeWilayahName(rawKey);
+            const marker = markerLookup[rawKey] || markerLookup[cleanKey];
+            if (marker) {
+                const targetZoom = level === 'kecamatan' ? 13 : (level === 'kota' ? 11 : 8);
+                map.flyTo(marker.getLatLng(), targetZoom, { duration: 0.6 });
+                setTimeout(() => { marker.openPopup(); }, 400);
+            }
         }
 
         // Initialize Map
@@ -1102,8 +1321,8 @@ include 'includes/head.php';
         window.addEventListener('load', () => { setTimeout(() => map.invalidateSize(), 200); });
         window.addEventListener('resize', () => { map.invalidateSize(); });
 
-        // Tab Switching Logic (Hierarki / Kota / Kecamatan)
-        function switchTab(tabId) {
+        // Tab Switching Logic (Hierarki / Kota / Kecamatan) - Tersinkronisasi dengan Peta
+        function switchTab(tabId, syncMap = true) {
             const tabs = ['tab-hierarki', 'tab-kota', 'tab-kec'];
             const btns = ['btn-tab-hierarki', 'btn-tab-kota', 'btn-tab-kec'];
             
@@ -1128,6 +1347,13 @@ include 'includes/head.php';
                     el.classList.add('text-gray-600', 'font-semibold');
                 }
             });
+
+            if (syncMap) {
+                const mapLvl = tabId === 'tab-kec' ? 'kecamatan' : (tabId === 'tab-kota' ? 'kota' : 'provinsi');
+                if (mapLevelActive !== mapLvl) {
+                    switchMapLevel(mapLvl, false);
+                }
+            }
         }
 
         // Quick Payment Confirmation Modal
