@@ -66,14 +66,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         if (($now_time - $last_sent) > 600) {
                             $_SESSION[$spam_key] = $now_time;
                             
-                            // Notifikasi ke Telegram
-                            $tel_msg = "💰 <b>BUKTI BAYAR DIUNGGAH!</b>\n";
-                            $tel_msg .= "--------------------------------------\n";
-                            $tel_msg .= "<b>No. Reg:</b> <code>" . $pendaftar['no_registrasi'] . "</code>\n";
-                            $tel_msg .= "<b>Nama:</b> " . htmlspecialchars($pendaftar['nama_santri']) . "\n";
-                            $tel_msg .= "<b>Jalur:</b> " . htmlspecialchars($pendaftar['jalur_pendaftaran']) . "\n\n";
-                            $tel_msg .= "<i>Cek selengkapnya di:</i>\n";
-                            $tel_msg .= "👉 https://" . $_SERVER['HTTP_HOST'] . "/admin/login.php";
+                            // Notifikasi ke Telegram (Format Khusus Pembayaran / Bukti Transfer)
+                            $nominal_tes = function_exists('format_rupiah') ? format_rupiah($biaya_tes_global) : ('Rp ' . number_format($biaya_tes_global, 0, ',', '.'));
+                            $tel_msg = "🟨💰 <b>[KONFIRMASI PEMBAYARAN]</b> 💰🟨\n";
+                            $tel_msg .= "════════════════════\n";
+                            $tel_msg .= "🧾 <b>Bukti Transfer Diunggah!</b>\n\n";
+                            $tel_msg .= "🆔 <b>No. Registrasi:</b> <code>" . $pendaftar['no_registrasi'] . "</code>\n";
+                            $tel_msg .= "👤 <b>Nama Santri:</b> " . htmlspecialchars($pendaftar['nama_santri']) . "\n";
+                            $tel_msg .= "🎓 <b>Jenjang:</b> " . htmlspecialchars($pendaftar['jalur_pendaftaran']) . "\n";
+                            $tel_msg .= "💵 <b>Tagihan Tes:</b> " . $nominal_tes . "\n";
+                            $tel_msg .= "⏳ <b>Tindakan:</b> <i>Menunggu Verifikasi Bendahara</i>";
                             send_telegram_msg($tel_msg);
                         }
                         

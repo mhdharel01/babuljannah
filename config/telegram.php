@@ -23,7 +23,8 @@ function send_telegram_msg($message) {
     $data = [
         'chat_id' => TELEGRAM_GROUP_ID,
         'text' => $message,
-        'parse_mode' => 'HTML'
+        'parse_mode' => 'HTML',
+        'disable_web_page_preview' => true
     ];
     
     $options = [

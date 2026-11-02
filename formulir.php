@@ -212,15 +212,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $gelombang_aktif && $gelombang_stat
             'email' => $email
         ]);
         
-        // Kirim Notifikasi ke Telegram Grup
-        $tel_msg = "🆕 <b>PENDAFTAR BARU MASUK!</b>\n";
-        $tel_msg .= "--------------------------------------\n";
-        $tel_msg .= "<b>No. Reg:</b> <code>" . $no_registrasi . "</code>\n";
-        $tel_msg .= "<b>Nama:</b> " . htmlspecialchars($nama_santri) . "\n";
-        $tel_msg .= "<b>Jalur:</b> " . htmlspecialchars($jalur_pendaftaran) . "\n";
-        $tel_msg .= "<b>No WA:</b> " . htmlspecialchars($wa_ayah) . "\n\n";
-        $tel_msg .= "<i>Cek selengkapnya di:</i>\n";
-        $tel_msg .= "👉 https://" . $_SERVER['HTTP_HOST'] . "/admin/login.php";
+        // Kirim Notifikasi ke Telegram Grup (Format Khusus Pendaftaran Baru)
+        $tel_msg = "🟦 <b>[PENDAFTARAN BARU]</b> 🟦\n";
+        $tel_msg .= "━━━━━━━━━━━━━━━━━━━━\n";
+        $tel_msg .= "👤 <b>Calon Santri:</b> " . htmlspecialchars($nama_santri) . "\n";
+        $tel_msg .= "🆔 <b>No. Registrasi:</b> <code>" . $no_registrasi . "</code>\n";
+        $tel_msg .= "🎓 <b>Jenjang/Jalur:</b> " . htmlspecialchars($jalur_pendaftaran) . "\n";
+        $tel_msg .= "📱 <b>WA Orang Tua:</b> <code>" . htmlspecialchars($wa_ayah) . "</code>\n";
+        $tel_msg .= "📌 <b>Status:</b> ⚪ <i>Baru Daftar (Belum Bayar)</i>";
         send_telegram_msg($tel_msg);
 
         $_SESSION['success_reg'] = "Pendaftaran Berhasil! Silakan catat Nomor Registrasi Anda.";
