@@ -32,7 +32,17 @@ function get_wa_url_custom($phone, $nama, $no_reg, $status_bayar, $status_seleks
     } elseif (strpos($clean, '62') !== 0) {
         $clean = '62' . $clean;
     }
-    $pesan = "Assalamu'alaikum Wr. Wb. Bapak/Ibu wali santri *{$nama}* (No. Registrasi: *{$no_reg}*).\n\nKami dari Panitia PSB Pondok Pesantren Babul Jannah ingin menginformasikan perihal pendaftaran ananda:\n- Status Pembayaran: *{$status_bayar}*\n- Hasil Seleksi: *{$status_seleksi}*\n\nJika ada pertanyaan lebih lanjut, silakan balas pesan ini. Jazakumullahu khairan.";
+
+    $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $base_dir = str_replace('\\', '/', rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/\\'));
+    $status_link = "{$proto}://{$host}{$base_dir}/status.php?no_reg=" . rawurlencode((string)$no_reg) . "&phone=" . rawurlencode((string)$phone);
+
+    if ($status_bayar === 'Lunas') {
+        $pesan = "Assalamu'alaikum Wr. Wb. Bapak/Ibu wali santri *{$nama}* (No. Registrasi: *{$no_reg}*).\n\nAlhamdulillah, pembayaran biaya pendaftaran PSB Pondok Pesantren Babul Jannah telah *DIVERIFIKASI (LUNAS)*.\n\n- Status Pembayaran: *LUNAS*\n- Hasil Seleksi: *{$status_seleksi}*\n\nSilakan unduh dan cetak *Kartu Ujian Seleksi* serta *Formulir Pendaftaran* ananda melalui tautan berikut:\n{$status_link}\n\nJazakumullahu khairan.";
+    } else {
+        $pesan = "Assalamu'alaikum Wr. Wb. Bapak/Ibu wali santri *{$nama}* (No. Registrasi: *{$no_reg}*).\n\nKami dari Panitia PSB Pondok Pesantren Babul Jannah ingin menginformasikan perihal pendaftaran ananda:\n- Status Pembayaran: *{$status_bayar}*\n- Hasil Seleksi: *{$status_seleksi}*\n\nCek status & unggah bukti pembayaran melalui tautan berikut:\n{$status_link}\n\nJika ada pertanyaan lebih lanjut, silakan balas pesan ini. Jazakumullahu khairan.";
+    }
     return "https://wa.me/{$clean}?text=" . rawurlencode($pesan);
 }
 
@@ -227,12 +237,20 @@ include 'includes/head.php';
 
             <!-- Alert Notifikasi -->
             <?php if (!empty($success)): ?>
-                <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-xl flex items-center justify-between shadow-xs">
+                <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                     <div class="flex items-center space-x-3">
                         <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
                         <p class="text-xs font-bold text-emerald-900"><?= htmlspecialchars($success) ?></p>
                     </div>
-                    <button type="button" onclick="this.parentElement.remove()" class="text-emerald-700 hover:text-emerald-900 text-xs font-bold">&times;</button>
+                    <div class="flex items-center space-x-2">
+                        <?php if ($santri['status_pembayaran'] === 'Lunas' && !empty($santri['wa_ayah'])): ?>
+                            <a href="<?= get_wa_url_custom($santri['wa_ayah'], $santri['nama_santri'], $santri['no_registrasi'], $santri['status_pembayaran'], $santri['status_seleksi']) ?>" target="_blank" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-xs transition">
+                                <i class="fa-brands fa-whatsapp text-sm"></i>
+                                <span>Kirim Notif Lunas &amp; Kartu Ujian via WA</span>
+                            </a>
+                        <?php endif; ?>
+                        <button type="button" onclick="this.closest('.bg-emerald-50').remove()" class="text-emerald-700 hover:text-emerald-900 text-sm font-bold px-1">&times;</button>
+                    </div>
                 </div>
             <?php endif; ?>
 
@@ -394,9 +412,10 @@ include 'includes/head.php';
                             <div class="bg-[#FBF9F6] border border-[#5C3E35]/20 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                                 <div>
                                     <h4 class="text-xs font-extrabold text-[#2F2522]">Tindakan Cepat Pembayaran</h4>
-                                    <p class="text-[11px] text-gray-500">Verifikasi struk transfer atau kembalikan status jika bukti tidak sesuai.</p>
+                                    <p class="text-[11px] text-gray-500">Verifikasi struk transfer, kirim notifikasi WA ke wali, atau kembalikan status jika bukti tidak sesuai.</p>
                                 </div>
-                                <div class="flex items-center space-x-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <?php if ($santri['status_pembayaran'] !== 'Lunas'): ?>
                                     <form method="POST" action="" onsubmit="return confirm('Apakah Anda yakin ingin memverifikasi pembayaran LUNAS untuk santri ini?')">
                                         <input type="hidden" name="action" value="verify_payment">
                                         <input type="hidden" name="status_pembayaran" value="Lunas">
@@ -406,7 +425,16 @@ include 'includes/head.php';
                                             <span>Verifikasi Lunas</span>
                                         </button>
                                     </form>
+                                    <?php endif; ?>
 
+                                    <?php if (!empty($santri['wa_ayah'])): ?>
+                                    <a href="<?= get_wa_url_custom($santri['wa_ayah'], $santri['nama_santri'], $santri['no_registrasi'], $santri['status_pembayaran'], $santri['status_seleksi']) ?>" target="_blank" class="px-3.5 py-2 bg-[#25D366] hover:bg-[#1ebe57] text-white rounded-xl text-xs font-extrabold transition shadow-xs flex items-center space-x-1.5" style="background-color: #16A34A !important; color: #FFFFFF !important;" title="Kirim pesan WhatsApp ke orang tua beserta tautan cek status / kartu ujian">
+                                        <i class="fa-brands fa-whatsapp text-sm"></i>
+                                        <span><?= $santri['status_pembayaran'] === 'Lunas' ? 'Kirim Notif Lunas via WA' : 'Hubungi Wali via WA' ?></span>
+                                    </a>
+                                    <?php endif; ?>
+
+                                    <?php if ($santri['status_pembayaran'] !== 'Belum Bayar'): ?>
                                     <form method="POST" action="" onsubmit="return confirm('Tolak bukti pembayaran dan kembalikan status ke Belum Bayar?')">
                                         <input type="hidden" name="action" value="verify_payment">
                                         <input type="hidden" name="status_pembayaran" value="Belum Bayar">
@@ -416,6 +444,7 @@ include 'includes/head.php';
                                             <span>Tolak Bukti</span>
                                         </button>
                                     </form>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endif; ?>

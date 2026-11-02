@@ -12,6 +12,8 @@ if (!isset($_SESSION['admin_logged']) || $_SESSION['admin_logged'] !== true) {
 $admin_role = $_SESSION['admin_role'] ?? 'panitia';
 $error = '';
 $success = '';
+$wa_notif_url = '';
+$wa_notif_nama = '';
 
 function clean_cell_val($val) {
     return trim(strip_tags((string)$val));
@@ -26,7 +28,17 @@ function get_wa_url($phone, $nama, $no_reg, $status_bayar, $status_seleksi) {
     } elseif (strpos($clean, '62') !== 0) {
         $clean = '62' . $clean;
     }
-    $pesan = "Assalamu'alaikum Wr. Wb. Bapak/Ibu wali santri *{$nama}* (No. Registrasi: *{$no_reg}*).\n\nKami dari Panitia PSB Pondok Pesantren Babul Jannah Dumai ingin menginformasikan status pendaftaran ananda:\n- Status Pembayaran: *{$status_bayar}*\n- Hasil Seleksi: *{$status_seleksi}*\n\nJika ada pertanyaan lebih lanjut, silakan balas pesan ini. Jazakumullahu khairan.";
+
+    $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $base_dir = str_replace('\\', '/', rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/\\'));
+    $status_link = "{$proto}://{$host}{$base_dir}/status.php?no_reg=" . rawurlencode((string)$no_reg) . "&phone=" . rawurlencode((string)$phone);
+
+    if ($status_bayar === 'Lunas') {
+        $pesan = "Assalamu'alaikum Wr. Wb. Bapak/Ibu wali santri *{$nama}* (No. Registrasi: *{$no_reg}*).\n\nAlhamdulillah, pembayaran biaya pendaftaran PSB Pondok Pesantren Babul Jannah Dumai telah *DIVERIFIKASI (LUNAS)*.\n\n- Status Pembayaran: *LUNAS*\n- Hasil Seleksi: *{$status_seleksi}*\n\nSilakan unduh dan cetak *Kartu Ujian Seleksi* serta *Formulir Pendaftaran* ananda melalui tautan berikut:\n{$status_link}\n\nJazakumullahu khairan.";
+    } else {
+        $pesan = "Assalamu'alaikum Wr. Wb. Bapak/Ibu wali santri *{$nama}* (No. Registrasi: *{$no_reg}*).\n\nKami dari Panitia PSB Pondok Pesantren Babul Jannah Dumai ingin menginformasikan status pendaftaran ananda:\n- Status Pembayaran: *{$status_bayar}*\n- Hasil Seleksi: *{$status_seleksi}*\n\nCek status & unggah bukti pembayaran melalui tautan berikut:\n{$status_link}\n\nJika ada pertanyaan lebih lanjut, silakan balas pesan ini. Jazakumullahu khairan.";
+    }
     return "https://wa.me/{$clean}?text=" . rawurlencode($pesan);
 }
 
@@ -83,9 +95,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 'id' => $id
             ]);
             
-            // Jika berubah menjadi Lunas, kirim email notifikasi
-            if ($old_data && $old_data['status_pembayaran'] !== 'Lunas' && $status_bayar === 'Lunas') {
-                send_email_verifikasi_lunas($old_data);
+            // Jika berubah menjadi Lunas, kirim email notifikasi & siapkan tombol WA cepat
+            if ($old_data && $status_bayar === 'Lunas') {
+                if ($old_data['status_pembayaran'] !== 'Lunas') {
+                    send_email_verifikasi_lunas($old_data);
+                }
+                if (!empty($old_data['wa_ayah'])) {
+                    $wa_notif_url = get_wa_url($old_data['wa_ayah'], $old_data['nama_santri'], $old_data['no_registrasi'], 'Lunas', $status_seleksi ?: 'Belum Seleksi');
+                    $wa_notif_nama = $old_data['nama_santri'];
+                }
             }
 
             $success = "Status santri berhasil diperbarui.";
@@ -105,7 +123,7 @@ if (isset($_GET['action']) && in_array($_GET['action'], ['confirm_payment', 'rej
         
         if ($id > 0) {
             try {
-                $stmt_old = $db->prepare("SELECT status_pembayaran, email, no_registrasi, nama_santri, wa_ayah FROM pendaftaran WHERE id = :id");
+                $stmt_old = $db->prepare("SELECT status_pembayaran, status_seleksi, email, no_registrasi, nama_santri, wa_ayah FROM pendaftaran WHERE id = :id");
                 $stmt_old->execute(['id' => $id]);
                 $old_data = $stmt_old->fetch();
                 
@@ -117,8 +135,14 @@ if (isset($_GET['action']) && in_array($_GET['action'], ['confirm_payment', 'rej
                 
                 if ($_GET['action'] === 'confirm_payment') {
                     $success = "Pembayaran berhasil diverifikasi (Status: Lunas).";
-                    if ($old_data && $old_data['status_pembayaran'] !== 'Lunas') {
-                        send_email_verifikasi_lunas($old_data);
+                    if ($old_data) {
+                        if ($old_data['status_pembayaran'] !== 'Lunas') {
+                            send_email_verifikasi_lunas($old_data);
+                        }
+                        if (!empty($old_data['wa_ayah'])) {
+                            $wa_notif_url = get_wa_url($old_data['wa_ayah'], $old_data['nama_santri'], $old_data['no_registrasi'], 'Lunas', $old_data['status_seleksi'] ?? 'Belum Seleksi');
+                            $wa_notif_nama = $old_data['nama_santri'];
+                        }
                     }
                 } else {
                     $success = "Pembayaran ditolak (Status dikembalikan ke Belum Bayar).";
@@ -621,12 +645,20 @@ include 'includes/head.php';
             <?php endif; ?>
 
             <?php if ($success): ?>
-            <div class="bg-emerald-50 border-2 border-emerald-400 text-emerald-900 px-5 py-4 rounded-2xl text-xs sm:text-sm flex items-center justify-between shadow-sm animate-fadeIn">
+            <div class="bg-emerald-50 border-2 border-emerald-400 text-emerald-900 px-5 py-4 rounded-2xl text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-fadeIn">
                 <div class="flex items-center space-x-3">
                     <i class="fa-solid fa-circle-check text-emerald-600 text-xl flex-shrink-0"></i>
                     <div class="font-bold whitespace-pre-wrap break-words leading-relaxed"><?= $success ?></div>
                 </div>
-                <button onclick="this.parentElement.style.display='none'" class="text-emerald-700 hover:text-emerald-950 font-bold p-1"><i class="fa-solid fa-xmark"></i></button>
+                <div class="flex items-center space-x-2">
+                    <?php if (!empty($wa_notif_url)): ?>
+                        <a href="<?= $wa_notif_url ?>" target="_blank" class="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                            <span>Kirim Notif Lunas via WA (<?= htmlspecialchars($wa_notif_nama) ?>)</span>
+                        </a>
+                    <?php endif; ?>
+                    <button onclick="this.closest('.bg-emerald-50').style.display='none'" class="text-emerald-700 hover:text-emerald-950 font-bold p-1"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
             <?php endif; ?>
 
@@ -1156,6 +1188,12 @@ include 'includes/head.php';
                                                         <button type="button" onclick="showBuktiModal('<?= htmlspecialchars($bukti_full_url, ENT_QUOTES) ?>', <?= $p['id'] ?>, '<?= $p['status_pembayaran'] ?>', '<?= htmlspecialchars($p['bukti_bayar_tes'], ENT_QUOTES) ?>')" class="p-1.5 text-brand-primary hover:text-brand-deep hover:bg-brand-primary/10 rounded-md transition" title="Lihat Struk Transfer">
                                                             <i class="fa-solid fa-image text-xs"></i>
                                                         </button>
+                                                    <?php endif; ?>
+
+                                                    <?php if ($p['status_pembayaran'] === 'Lunas' && !empty($p['wa_ayah'])): ?>
+                                                        <a href="<?= get_wa_url($p['wa_ayah'], $p['nama_santri'], $p['no_registrasi'], $p['status_pembayaran'], $p['status_seleksi']) ?>" target="_blank" class="p-1.5 text-emerald-600 hover:text-white hover:bg-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md transition" title="Kirim Notifikasi Lunas & Link Kartu Ujian via WhatsApp">
+                                                            <i class="fa-brands fa-whatsapp text-xs"></i>
+                                                        </a>
                                                     <?php endif; ?>
                                                 </div>
                                             </td>
