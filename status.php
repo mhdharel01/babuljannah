@@ -6,7 +6,8 @@ require_once 'config/telegram.php';
 $pendaftar = null;
 $searched = false;
 $error = '';
-$upload_success = '';
+$upload_success = $_SESSION['upload_success'] ?? '';
+unset($_SESSION['upload_success']);
 $edit_success = isset($_GET['edit_success']) ? "Data formulir pendaftaran berhasil diperbarui!" : '';
 
 // Ambil Biaya Formulir / Tes Seleksi (1 Nilai Global)
@@ -57,22 +58,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             'id' => $pendaftar['id']
                         ]);
                         
-                        $upload_success = "Bukti pembayaran berhasil diunggah! Status pendaftaran Anda kini: Menunggu Verifikasi.";
+                        // Proteksi Anti-Spam Telegram (Maksimal 1 notifikasi per 10 menit untuk santri yang sama)
+                        $spam_key = 'last_notif_bukti_' . $pendaftar['id'];
+                        $now_time = time();
+                        $last_sent = $_SESSION[$spam_key] ?? 0;
+
+                        if (($now_time - $last_sent) > 600) {
+                            $_SESSION[$spam_key] = $now_time;
+                            
+                            // Notifikasi ke Telegram
+                            $tel_msg = "💰 <b>BUKTI BAYAR DIUNGGAH!</b>\n";
+                            $tel_msg .= "--------------------------------------\n";
+                            $tel_msg .= "<b>No. Reg:</b> <code>" . $pendaftar['no_registrasi'] . "</code>\n";
+                            $tel_msg .= "<b>Nama:</b> " . htmlspecialchars($pendaftar['nama_santri']) . "\n";
+                            $tel_msg .= "<b>Jalur:</b> " . htmlspecialchars($pendaftar['jalur_pendaftaran']) . "\n\n";
+                            $tel_msg .= "<i>Cek selengkapnya di:</i>\n";
+                            $tel_msg .= "👉 https://" . $_SERVER['HTTP_HOST'] . "/admin/login.php";
+                            send_telegram_msg($tel_msg);
+                        }
                         
-                        // Notifikasi ke Telegram
-                        $tel_msg = "💰 <b>BUKTI BAYAR DIUNGGAH!</b>\n";
-                        $tel_msg .= "--------------------------------------\n";
-                        $tel_msg .= "<b>No. Reg:</b> <code>" . $pendaftar['no_registrasi'] . "</code>\n";
-                        $tel_msg .= "<b>Nama:</b> " . htmlspecialchars($pendaftar['nama_santri']) . "\n";
-                        $tel_msg .= "<b>Jalur:</b> " . htmlspecialchars($pendaftar['jalur_pendaftaran']) . "\n\n";
-                        $tel_msg .= "<i>Cek selengkapnya di:</i>\n";
-                        $tel_msg .= "👉 https://" . $_SERVER['HTTP_HOST'] . "/admin/login.php";
-                        send_telegram_msg($tel_msg);
-                        
-                        // Reload data terbaru
-                        $stmt_reload = $db->prepare("SELECT p.*, COALESCE(g.nama_gelombang, '-') as nama_gelombang, COALESCE(g.tahun_ajaran, '-') as tahun_ajaran, g.tgl_ujian, g.tgl_pengumuman FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE p.id = :id");
-                        $stmt_reload->execute(['id' => $pendaftar['id']]);
-                        $pendaftar = $stmt_reload->fetch();
+                        // Pola PRG (Post-Redirect-Get) MENCEGAH SPAM saat User Refresh/Reload Tab di Browser
+                        $_SESSION['upload_success'] = "Bukti pembayaran berhasil diunggah! Status pendaftaran Anda kini: Menunggu Verifikasi.";
+                        header("Location: status.php?no_reg=" . urlencode($pendaftar['no_registrasi']) . "&phone=" . urlencode($clean_phone) . "&uploaded=1");
+                        exit();
                     } else {
                         $error = "Gagal memproses file. Pastikan file bukan gambar yang rusak dan ukurannya sesuai.";
                     }
@@ -145,6 +153,23 @@ require_once 'includes/header.php';
                 </div>
             </div>
             <?php unset($_SESSION['success_reg']); endif; ?>
+
+            <?php if (isset($_SESSION['warning_reg']) || isset($_GET['already_registered'])): ?>
+            <div class="bg-amber-50 border-2 border-amber-300 text-amber-900 p-5 rounded-2xl text-sm flex items-start space-x-3.5 mb-5 shadow-xs">
+                <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 text-base shadow-2xs mt-0.5">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="space-y-1">
+                    <strong class="font-black text-amber-950 text-sm sm:text-base block">Calon Santri Sudah Terdaftar Sebelumnya</strong>
+                    <p class="text-xs leading-relaxed text-amber-900 font-medium">
+                        <?= $_SESSION['warning_reg'] ?? 'Calon santri ini sudah terdaftar sebelumnya di sistem PSB Pondok Pesantren Babul Jannah. Anda tidak perlu mengisi formulir pendaftaran kembali.' ?>
+                    </p>
+                    <p class="text-[11px] text-amber-800 font-semibold pt-1">
+                        <i class="fa-solid fa-circle-info mr-1"></i> Silakan lanjutkan pembayaran pendaftaran atau unggah bukti transfer langsung pada rincian tagihan di bawah ini.
+                    </p>
+                </div>
+            </div>
+            <?php unset($_SESSION['warning_reg']); endif; ?>
 
             <?php if ($upload_success): ?>
             <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-sm flex items-start space-x-3 mb-4">
@@ -1066,6 +1091,25 @@ function copyNorek(text, btn) {
         }, 2000);
     }
 }
+
+// Anti-Spam Button Lock saat Unggah Bukti Bayar
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.querySelector('form input[name="action"][value="upload_bukti"]')?.closest('form');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            const btn = uploadForm.querySelector('button[type="submit"]');
+            if (btn) {
+                if (btn.disabled) {
+                    e.preventDefault();
+                    return false;
+                }
+                btn.disabled = true;
+                btn.classList.add('opacity-75', 'cursor-wait');
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengunggah Bukti Bayar...';
+            }
+        });
+    }
+});
 </script>
 
 <?php

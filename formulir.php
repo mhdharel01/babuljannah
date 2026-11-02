@@ -39,7 +39,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $gelombang_aktif && $gelombang_stat
         $error = "Token keamanan tidak valid. Silakan muat ulang halaman dan coba lagi.";
     } else {
         try {
-        // 1. Generate No Registrasi (PPBJ-YYYY-XXX)
+        // 1. Ambil & Sanitasi Data Pokok Terlebih Dahulu
+        $gelombang_id = $gelombang_aktif['id'];
+        $jalur_pendaftaran = sanitize($_POST['jalur_pendaftaran'] ?? '');
+        $nama_santri = sanitize($_POST['nama_santri'] ?? '');
+        $nik_santri = sanitize($_POST['nik_santri'] ?? '');
+        $wa_ayah = sanitize($_POST['wa_ayah'] ?? '');
+
+        // ========================================================
+        // 2. CEK DUPLIKASI DATA (ANTI-SPAM & ANTI-DUPLICATE SYSTEM)
+        // ========================================================
+        $existing = false;
+        if (!empty($nik_santri)) {
+            $stmt_cek = $db->prepare("SELECT id, no_registrasi, nama_santri, wa_ayah, status_pembayaran FROM pendaftaran WHERE nik_santri = :nik LIMIT 1");
+            $stmt_cek->execute(['nik' => $nik_santri]);
+            $existing = $stmt_cek->fetch();
+        }
+
+        // Fallback: Jika NIK berbeda/kosong tapi Nama dan No WA Ayah identik pada gelombang ini
+        if (!$existing && !empty($nama_santri) && !empty($wa_ayah)) {
+            $stmt_cek_nama = $db->prepare("SELECT id, no_registrasi, nama_santri, wa_ayah, status_pembayaran FROM pendaftaran WHERE LOWER(TRIM(nama_santri)) = LOWER(TRIM(:nama)) AND wa_ayah = :wa AND gelombang_id = :gid LIMIT 1");
+            $stmt_cek_nama->execute(['nama' => $nama_santri, 'wa' => $wa_ayah, 'gid' => $gelombang_id]);
+            $existing = $stmt_cek_nama->fetch();
+        }
+
+        if ($existing) {
+            // Data sudah pernah didaftarkan! Cegah duplikasi data dan langsung arahkan ke halaman status
+            $exist_no_reg = $existing['no_registrasi'];
+            $exist_wa = !empty($existing['wa_ayah']) ? $existing['wa_ayah'] : $wa_ayah;
+            $exist_name = $existing['nama_santri'];
+            
+            $_SESSION['warning_reg'] = "Calon santri atas nama <strong>" . htmlspecialchars($exist_name) . "</strong> sudah terdaftar di sistem kami dengan Nomor Registrasi <strong>" . htmlspecialchars($exist_no_reg) . "</strong>. Anda tidak perlu mengisi formulir kembali.";
+            
+            header("Location: status.php?already_registered=1&no_reg=" . urlencode($exist_no_reg) . "&phone=" . urlencode($exist_wa));
+            exit();
+        }
+
+        // 3. Generate No Registrasi Baru (PPBJ-YYYY-XXX)
         $year = date('Y');
         $prefix = "PPBJ-" . $year . "-";
         $stmt_seq = $db->prepare("SELECT no_registrasi FROM pendaftaran WHERE no_registrasi LIKE :prefix ORDER BY id DESC LIMIT 1");
@@ -54,13 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $gelombang_aktif && $gelombang_stat
         }
         $no_registrasi = $prefix . $next_num;
 
-        // 2. Ambil & Sanitasi Data
-        $gelombang_id = $gelombang_aktif['id'];
-        $jalur_pendaftaran = sanitize($_POST['jalur_pendaftaran'] ?? '');
-        
-        // Data Santri
-        $nama_santri = sanitize($_POST['nama_santri'] ?? '');
-        $nik_santri = sanitize($_POST['nik_santri'] ?? '');
+        // 4. Data Santri Lengkap
         $nisn = sanitize($_POST['nisn'] ?? '');
         $no_kk = sanitize($_POST['no_kk'] ?? '');
         $tempat_lahir = sanitize($_POST['tempat_lahir'] ?? '');
@@ -618,7 +648,7 @@ require_once 'includes/header.php';
 
                         <div class="flex justify-between pt-4">
                             <button class="btn-prev border border-gray-300 text-gray-600 hover:bg-gray-100 font-semibold px-5 py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali</button>
-                            <button type="submit" class="bg-primary hover:bg-secondary text-white font-extrabold px-8 py-2.5 rounded-lg text-sm shadow-md transition flex items-center space-x-1">
+                            <button type="submit" id="btnSubmitPendaftaran" class="bg-primary hover:bg-secondary text-white font-extrabold px-8 py-2.5 rounded-lg text-sm shadow-md transition flex items-center space-x-1 cursor-pointer">
                                 <i class="fa-solid fa-paper-plane mr-1"></i>
                                 <span>Kirim Pendaftaran</span>
                             </button>
@@ -856,6 +886,17 @@ document.addEventListener("DOMContentLoaded", function() {
         formElement.addEventListener('submit', function(e) {
             if (!validateStep4()) {
                 e.preventDefault();
+                return false;
+            }
+            const btnSubmit = document.getElementById('btnSubmitPendaftaran') || formElement.querySelector('button[type="submit"]');
+            if (btnSubmit) {
+                if (btnSubmit.disabled) {
+                    e.preventDefault();
+                    return false;
+                }
+                btnSubmit.disabled = true;
+                btnSubmit.classList.add('opacity-75', 'cursor-wait');
+                btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengirim Pendaftaran...';
             }
         });
     }

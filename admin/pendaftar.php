@@ -512,7 +512,15 @@ $offset = ($page - 1) * $limit;
 $total_data = (int)$filter_sum['total_filter'];
 $total_pages = max(1, ceil($total_data / $limit));
 
-$query_sql = "SELECT p.*, COALESCE(g.nama_gelombang, '-') as nama_gelombang FROM pendaftaran p LEFT JOIN gelombang g ON p.gelombang_id = g.id WHERE 1=1" . $where_clauses . " ORDER BY p.id DESC LIMIT $limit OFFSET $offset";
+$query_sql = "SELECT p.*, 
+    COALESCE(g.nama_gelombang, '-') as nama_gelombang,
+    (SELECT COUNT(*) FROM pendaftaran p2 WHERE p2.id != p.id AND (
+        (p2.nik_santri = p.nik_santri AND p2.nik_santri != '' AND p2.nik_santri IS NOT NULL) OR 
+        (LOWER(TRIM(p2.nama_santri)) = LOWER(TRIM(p.nama_santri)) AND p2.wa_ayah = p.wa_ayah AND p.wa_ayah != '')
+    )) as is_duplicate
+FROM pendaftaran p 
+LEFT JOIN gelombang g ON p.gelombang_id = g.id 
+WHERE 1=1" . $where_clauses . " ORDER BY p.id DESC LIMIT $limit OFFSET $offset";
 $stmt_list = $db->prepare($query_sql);
 $stmt_list->execute($params);
 $pendaftar_list = $stmt_list->fetchAll();
@@ -1069,12 +1077,17 @@ include 'includes/head.php';
                                                         <?= htmlspecialchars(strtoupper(substr($p['nama_santri'], 0, 1))) ?>
                                                     </div>
                                                     <div>
-                                                        <div class="flex items-center space-x-1.5">
+                                                        <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
                                                             <a href="detail_pendaftar.php?id=<?= $p['id'] ?>" class="font-extrabold text-gray-900 hover:text-brand-primary text-xs uppercase leading-tight transition" title="Lihat Detail Santri">
                                                                 <?= htmlspecialchars($p['nama_santri']) ?>
                                                             </a>
                                                             <?php if (isset($p['kategori_santri']) && $p['kategori_santri'] === 'Pindahan'): ?>
                                                                 <span class="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] px-1.5 py-0.2 rounded font-black">Pindahan</span>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($p['is_duplicate']) && $p['is_duplicate'] > 0): ?>
+                                                                <span class="bg-amber-100 text-amber-900 border border-amber-300 text-[9px] px-1.5 py-0.5 rounded-md font-black inline-flex items-center shadow-2xs" title="Peringatan: Terdapat <?= (int)$p['is_duplicate'] ?> data pendaftaran lain dengan NIK atau Nama & Kontak identik. Hubungi wali sebelum menghapus.">
+                                                                    <i class="fa-solid fa-clone text-[8px] mr-1 text-amber-700"></i> Terindikasi Ganda
+                                                                </span>
                                                             <?php endif; ?>
                                                         </div>
                                                         <div class="text-[10px] text-gray-500 font-medium mt-1 flex items-center space-x-1.5 flex-wrap gap-y-0.5">
