@@ -45,6 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $gelombang_aktif && $gelombang_stat
         $nama_santri = sanitize($_POST['nama_santri'] ?? '');
         $nik_santri = sanitize($_POST['nik_santri'] ?? '');
         $wa_ayah = sanitize($_POST['wa_ayah'] ?? '');
+        $email_raw = trim($_POST['email'] ?? '');
+
+        // Validasi Server-Side Alamat Email (Wajib ada '@' dan format email valid)
+        if (empty($email_raw) || strpos($email_raw, '@') === false || !filter_var($email_raw, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception("Format Alamat Email tidak valid! Harap masukkan alamat email aktif yang menggunakan tanda '@' dan domain yang benar (contoh: nama@gmail.com).");
+        }
 
         // ========================================================
         // 2. CEK DUPLIKASI DATA (ANTI-SPAM & ANTI-DUPLICATE SYSTEM)
@@ -228,6 +234,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $gelombang_aktif && $gelombang_stat
 
     } catch (PDOException $e) {
         $error = "Terjadi kesalahan sistem saat menyimpan data: " . $e->getMessage();
+    } catch (Exception $e) {
+        $error = $e->getMessage();
     }
     }
 }
@@ -343,7 +351,7 @@ require_once 'includes/header.php';
                         </div>
                         
                         <div class="flex justify-end pt-4">
-                            <button class="btn-next bg-primary hover:bg-secondary text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow transition">Lanjut ke Data Santri <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                            <button type="button" class="btn-next bg-primary hover:bg-secondary text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow transition">Lanjut ke Data Santri <i class="fa-solid fa-arrow-right ml-1"></i></button>
                         </div>
                     </div>
 
@@ -381,7 +389,10 @@ require_once 'includes/header.php';
                             </div>
                             <div>
                                 <label for="email" class="block text-sm font-semibold text-dark mb-2">Alamat Email Aktif <span class="text-red-500">*</span></label>
-                                <input type="email" name="email" id="email" required placeholder="contoh@gmail.com" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary focus:ring-opacity-25 rounded-lg px-4 py-2.5 text-sm focus:outline-none transition">
+                                <div class="relative">
+                                    <input type="email" name="email" id="email" required autocomplete="email" inputmode="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" placeholder="contoh@gmail.com" class="w-full border border-gray-300 focus:border-secondary focus:ring-2 focus:ring-secondary focus:ring-opacity-25 rounded-lg px-4 py-2.5 text-sm focus:outline-none transition">
+                                </div>
+                                <p id="email_feedback" class="text-[11px] font-semibold mt-1 hidden"></p>
                             </div>
                             <div>
                                 <div class="grid grid-cols-2 gap-4">
@@ -453,8 +464,8 @@ require_once 'includes/header.php';
                         </div>
 
                         <div class="flex justify-between pt-4">
-                            <button class="btn-prev border border-gray-300 text-gray-600 hover:bg-gray-100 font-semibold px-5 py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali</button>
-                            <button class="btn-next bg-primary hover:bg-secondary text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow transition">Lanjut ke Data Orang Tua <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                            <button type="button" class="btn-prev border border-gray-300 text-gray-600 hover:bg-gray-100 font-semibold px-5 py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali</button>
+                            <button type="button" class="btn-next bg-primary hover:bg-secondary text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow transition">Lanjut ke Data Orang Tua <i class="fa-solid fa-arrow-right ml-1"></i></button>
                         </div>
                     </div>
 
@@ -580,8 +591,8 @@ require_once 'includes/header.php';
                         </div>
 
                         <div class="flex justify-between pt-4">
-                            <button class="btn-prev border border-gray-300 text-gray-600 hover:bg-gray-100 font-semibold px-5 py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali</button>
-                            <button class="btn-next bg-primary hover:bg-secondary text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow transition">Lanjut ke Data Sekolah <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                            <button type="button" class="btn-prev border border-gray-300 text-gray-600 hover:bg-gray-100 font-semibold px-5 py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali</button>
+                            <button type="button" class="btn-next bg-primary hover:bg-secondary text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow transition">Lanjut ke Data Sekolah <i class="fa-solid fa-arrow-right ml-1"></i></button>
                         </div>
                     </div>
 
@@ -646,7 +657,7 @@ require_once 'includes/header.php';
                         </div>
 
                         <div class="flex justify-between pt-4">
-                            <button class="btn-prev border border-gray-300 text-gray-600 hover:bg-gray-100 font-semibold px-5 py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali</button>
+                            <button type="button" class="btn-prev border border-gray-300 text-gray-600 hover:bg-gray-100 font-semibold px-5 py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali</button>
                             <button type="submit" id="btnSubmitPendaftaran" class="bg-primary hover:bg-secondary text-white font-extrabold px-8 py-2.5 rounded-lg text-sm shadow-md transition flex items-center space-x-1 cursor-pointer">
                                 <i class="fa-solid fa-paper-plane mr-1"></i>
                                 <span>Kirim Pendaftaran</span>
@@ -775,6 +786,92 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById("daftar-form-container").scrollIntoView({ behavior: 'smooth' });
     }
 
+    function showFormAlert(icon, title, text) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: icon, title: title, text: text, confirmButtonColor: '#3E2723' });
+        } else {
+            alert(title + ': ' + text);
+        }
+    }
+
+    // Real-time validasi input Email (@ dan domain)
+    const emailInput = document.getElementById("email");
+    const emailFeedback = document.getElementById("email_feedback");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    function checkEmailValidity(showNativeTooltip = false) {
+        if (!emailInput) return true;
+        const val = emailInput.value.trim();
+
+        if (!val) {
+            emailInput.setCustomValidity("Harap isi alamat email aktif Anda.");
+            emailInput.classList.remove("border-emerald-500", "border-red-500");
+            if (emailFeedback) {
+                emailFeedback.className = "text-[11px] font-semibold mt-1 text-red-600";
+                emailFeedback.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1"></i> Alamat email wajib diisi.';
+            }
+            if (showNativeTooltip) emailInput.reportValidity();
+            return false;
+        }
+
+        if (!val.includes("@")) {
+            const msg = `Harap sertakan tanda '@' pada alamat email. '${val}' belum memiliki tanda '@' (contoh: nama@gmail.com).`;
+            emailInput.setCustomValidity(msg);
+            emailInput.classList.add("border-red-500");
+            emailInput.classList.remove("border-gray-300", "border-emerald-500");
+            if (emailFeedback) {
+                emailFeedback.className = "text-[11px] font-semibold mt-1 text-red-600";
+                emailFeedback.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Wajib menyertakan tanda <b>@</b> (contoh: <i>nama@gmail.com</i>)';
+            }
+            if (showNativeTooltip) emailInput.reportValidity();
+            return false;
+        }
+
+        if (!emailRegex.test(val)) {
+            const msg = "Harap masukkan nama domain setelah tanda '@' dengan lengkap (contoh: nama@gmail.com).";
+            emailInput.setCustomValidity(msg);
+            emailInput.classList.add("border-red-500");
+            emailInput.classList.remove("border-gray-300", "border-emerald-500");
+            if (emailFeedback) {
+                emailFeedback.className = "text-[11px] font-semibold mt-1 text-red-600";
+                emailFeedback.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Format domain setelah <b>@</b> belum lengkap (contoh: <i>nama@gmail.com</i>)';
+            }
+            if (showNativeTooltip) emailInput.reportValidity();
+            return false;
+        }
+
+        emailInput.setCustomValidity("");
+        emailInput.classList.remove("border-red-500", "border-gray-300");
+        emailInput.classList.add("border-emerald-500");
+        if (emailFeedback) {
+            emailFeedback.className = "text-[11px] font-semibold mt-1 text-emerald-600";
+            emailFeedback.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> Format alamat email valid';
+        }
+        return true;
+    }
+
+    if (emailInput) {
+        emailInput.addEventListener("input", function() {
+            // Hapus spasi otomatis saat mengetik email
+            if (this.value.includes(" ")) {
+                this.value = this.value.replace(/\s+/g, "");
+            }
+            if (this.value.length > 0) {
+                checkEmailValidity(false);
+            } else {
+                this.setCustomValidity("");
+                this.classList.remove("border-red-500", "border-emerald-500");
+                this.classList.add("border-gray-300");
+                if (emailFeedback) emailFeedback.className = "text-[11px] font-semibold mt-1 hidden";
+            }
+        });
+        emailInput.addEventListener("blur", function() {
+            if (this.value.trim().length > 0) {
+                checkEmailValidity(true);
+            }
+        });
+    }
+
     // Input validations for step 2
     function validateStep2() {
         const nama = document.getElementById("nama_santri").value.trim();
@@ -790,33 +887,33 @@ document.addEventListener("DOMContentLoaded", function() {
         const alamat = document.getElementById("alamat_lengkap").value.trim();
 
         if (!nama || !jk || !nik || !nisn || !kk || !email || !tempat || !tgl || !alamat) {
-            Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Harap lengkapi semua kolom wajib (*) bertanda bintang.', confirmButtonColor: '#3E2723' });
+            showFormAlert('warning', 'Data Belum Lengkap', 'Harap lengkapi semua kolom wajib (*) bertanda bintang.');
             return false;
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            Swal.fire({ icon: 'warning', title: 'Format Email Salah', text: 'Harap masukkan alamat email yang valid dan aktif.', confirmButtonColor: '#3E2723' });
+        if (!checkEmailValidity(true)) {
+            emailInput.focus();
+            showFormAlert('warning', 'Format Email Tidak Valid', "Harap masukkan alamat email aktif yang menyertakan tanda '@' dan domain (contoh: nama@gmail.com).");
             return false;
         }
 
         if (nik.length < 16) {
-            Swal.fire({ icon: 'error', title: 'Format NIK Salah', text: 'NIK harus terdiri dari 16 digit.', confirmButtonColor: '#3E2723' });
+            showFormAlert('error', 'Format NIK Salah', 'NIK harus terdiri dari 16 digit.');
             return false;
         }
 
         if (nisn.length < 10) {
-            Swal.fire({ icon: 'error', title: 'Format NISN Salah', text: 'NISN harus terdiri dari 10 digit.', confirmButtonColor: '#3E2723' });
+            showFormAlert('error', 'Format NISN Salah', 'NISN harus terdiri dari 10 digit.');
             return false;
         }
 
         if (kk.length < 16) {
-            Swal.fire({ icon: 'error', title: 'Format KK Salah', text: 'Nomor Kartu Keluarga harus terdiri dari 16 digit.', confirmButtonColor: '#3E2723' });
+            showFormAlert('error', 'Format KK Salah', 'Nomor Kartu Keluarga harus terdiri dari 16 digit.');
             return false;
         }
 
         if (!prov || !kab) {
-            Swal.fire({ icon: 'warning', title: 'Wilayah Belum Dipilih', text: 'Harap pilih Provinsi dan Kabupaten/Kota tempat tinggal.', confirmButtonColor: '#3E2723' });
+            showFormAlert('warning', 'Wilayah Belum Dipilih', 'Harap pilih Provinsi dan Kabupaten/Kota tempat tinggal.');
             return false;
         }
 
@@ -830,12 +927,12 @@ document.addEventListener("DOMContentLoaded", function() {
         const namaIbu = document.getElementById("nama_ibu").value.trim();
 
         if (!namaAyah || !waAyah || !namaIbu) {
-            Swal.fire({ icon: 'warning', title: 'Data Orang Tua Belum Lengkap', text: 'Harap lengkapi nama Ayah, Ibu, dan No. HP/WA Ayah.', confirmButtonColor: '#3E2723' });
+            showFormAlert('warning', 'Data Orang Tua Belum Lengkap', 'Harap lengkapi nama Ayah, Ibu, dan No. HP/WA Ayah.');
             return false;
         }
 
         if (waAyah.length < 10) {
-            Swal.fire({ icon: 'warning', title: 'Nomor HP/WA Kurang', text: 'Nomor HP/WA Ayah minimal 10 digit.', confirmButtonColor: '#3E2723' });
+            showFormAlert('warning', 'Nomor HP/WA Kurang', 'Nomor HP/WA Ayah minimal 10 digit.');
             return false;
         }
 
@@ -848,7 +945,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const namaSekolah = document.getElementById("nama_sekolah_asal").value.trim();
 
         if (!jenisSekolah || !namaSekolah) {
-            Swal.fire({ icon: 'warning', title: 'Data Sekolah Belum Lengkap', text: 'Harap pilih Jenis Sekolah Asal dan isi Nama Sekolah Asal.', confirmButtonColor: '#3E2723' });
+            showFormAlert('warning', 'Data Sekolah Belum Lengkap', 'Harap pilih Jenis Sekolah Asal dan isi Nama Sekolah Asal.');
             return false;
         }
         return true;
@@ -861,7 +958,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (currentStep === 1) {
                 const jenjang = document.getElementById("jalur_pendaftaran").value;
                 if (!jenjang) {
-                    Swal.fire({ icon: 'warning', title: 'Jalur Belum Dipilih', text: 'Silakan pilih Jalur/Jenjang Pendidikan terlebih dahulu.', confirmButtonColor: '#3E2723' });
+                    showFormAlert('warning', 'Jalur Belum Dipilih', 'Silakan pilih Jalur/Jenjang Pendidikan terlebih dahulu.');
                     return;
                 }
                 currentStep = 2;
@@ -882,7 +979,30 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const formElement = document.querySelector('form[action="formulir.php"]');
     if (formElement) {
+        // Cegah tombol Enter men-submit form sebelum Langkah 4
+        formElement.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                if (currentStep < 4) {
+                    e.preventDefault();
+                    const activeNextBtn = formElement.querySelector(`.form-step[data-step="${currentStep}"] .btn-next`);
+                    if (activeNextBtn) activeNextBtn.click();
+                }
+            }
+        });
+
         formElement.addEventListener('submit', function(e) {
+            if (!validateStep2()) {
+                e.preventDefault();
+                currentStep = 2;
+                showStep(2);
+                return false;
+            }
+            if (!validateStep3()) {
+                e.preventDefault();
+                currentStep = 3;
+                showStep(3);
+                return false;
+            }
             if (!validateStep4()) {
                 e.preventDefault();
                 return false;

@@ -54,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
         $pekerjaan_ayah = sanitize($_POST['pekerjaan_ayah'] ?? '');
         $penghasilan_ayah = sanitize($_POST['penghasilan_ayah'] ?? '');
         $wa_ayah = sanitize($_POST['wa_ayah'] ?? '');
+        $email = sanitize($_POST['email'] ?? '');
         
         $nama_ibu = sanitize($_POST['nama_ibu'] ?? '');
         $nik_ibu = sanitize($_POST['nik_ibu'] ?? '');
@@ -79,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
 
         if (empty($nama_santri) || empty($nik_santri)) {
             $error = "Nama Santri dan NIK wajib diisi.";
+        } elseif (!empty($email) && (strpos($email, '@') === false || !filter_var($email, FILTER_VALIDATE_EMAIL))) {
+            $error = "Format alamat email tidak valid! Harap gunakan format email dengan tanda '@' dan domain (contoh: orangtua@gmail.com).";
         } else {
             $sql_update = "UPDATE pendaftaran SET 
                 jalur_pendaftaran = :jalur_pendaftaran,
@@ -89,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
                 provinsi = :provinsi, kabupaten = :kabupaten, kecamatan = :kecamatan, kelurahan = :kelurahan,
                 alamat_lengkap = :alamat_lengkap,
                 nama_ayah = :nama_ayah, nik_ayah = :nik_ayah, thn_lahir_ayah = :thn_lahir_ayah, 
-                pendidikan_ayah = :pendidikan_ayah, pekerjaan_ayah = :pekerjaan_ayah, penghasilan_ayah = :penghasilan_ayah, wa_ayah = :wa_ayah,
+                pendidikan_ayah = :pendidikan_ayah, pekerjaan_ayah = :pekerjaan_ayah, penghasilan_ayah = :penghasilan_ayah, wa_ayah = :wa_ayah, email = :email,
                 nama_ibu = :nama_ibu, nik_ibu = :nik_ibu, thn_lahir_ibu = :thn_lahir_ibu, 
                 pendidikan_ibu = :pendidikan_ibu, pekerjaan_ibu = :pekerjaan_ibu, penghasilan_ibu = :penghasilan_ibu, wa_ibu = :wa_ibu,
                 nama_wali = :nama_wali, wa_wali = :wa_wali,
@@ -108,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
                 ':provinsi' => $provinsi, ':kabupaten' => $kabupaten, ':kecamatan' => $kecamatan, ':kelurahan' => $kelurahan,
                 ':alamat_lengkap' => $alamat_lengkap,
                 ':nama_ayah' => $nama_ayah, ':nik_ayah' => $nik_ayah, ':thn_lahir_ayah' => $thn_lahir_ayah,
-                ':pendidikan_ayah' => $pendidikan_ayah, ':pekerjaan_ayah' => $pekerjaan_ayah, ':penghasilan_ayah' => $penghasilan_ayah, ':wa_ayah' => $wa_ayah,
+                ':pendidikan_ayah' => $pendidikan_ayah, ':pekerjaan_ayah' => $pekerjaan_ayah, ':penghasilan_ayah' => $penghasilan_ayah, ':wa_ayah' => $wa_ayah, ':email' => $email,
                 ':nama_ibu' => $nama_ibu, ':nik_ibu' => $nik_ibu, ':thn_lahir_ibu' => $thn_lahir_ibu,
                 ':pendidikan_ibu' => $pendidikan_ibu, ':pekerjaan_ibu' => $pekerjaan_ibu, ':penghasilan_ibu' => $penghasilan_ibu, ':wa_ibu' => $wa_ibu,
                 ':nama_wali' => $nama_wali, ':wa_wali' => $wa_wali,
@@ -329,8 +332,16 @@ include 'includes/head.php';
                     <!-- Card 3: Data Orang Tua / Wali -->
                     <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-200/80 space-y-6">
                         <h2 class="text-lg font-bold text-primary border-b border-gray-100 pb-3 flex items-center">
-                            <i class="fa-solid fa-users text-secondary mr-2.5"></i> Data Orang Tua / Wali
+                            <i class="fa-solid fa-users text-secondary mr-2.5"></i> Data Orang Tua / Wali & Kontak Email
                         </h2>
+
+                        <div class="p-4 rounded-2xl bg-gray-50 border border-gray-200/80">
+                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center">
+                                <i class="fa-solid fa-envelope text-secondary mr-2"></i> Alamat Email Aktif (Notifikasi PSB)
+                            </label>
+                            <input type="email" name="email" value="<?= htmlspecialchars($santri['email'] ?? '') ?>" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" placeholder="contoh: orangtua@gmail.com" oninput="this.value=this.value.replace(/\s+/g,'')" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition">
+                            <p class="text-[11px] text-gray-500 mt-1">Wajib menyertakan tanda <b>@</b> dan domain aktif (contoh: <i>orangtua@gmail.com</i>).</p>
+                        </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Ayah -->

@@ -92,6 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Mohon lengkapi data wajib: Nama Calon Santri, NIK (16 digit), Jalur Pendidikan, dan Gelombang Pendaftaran.";
         } elseif (strlen($nik_santri) < 16) {
             $error = "NIK Calon Santri harus berisi 16 digit angka sesuai Kartu Keluarga.";
+        } elseif (!empty($email) && (strpos($email, '@') === false || !filter_var($email, FILTER_VALIDATE_EMAIL))) {
+            $error = "Format alamat email tidak valid! Harap gunakan format email dengan tanda '@' dan domain (contoh: orangtua@gmail.com).";
         } else {
             // Cek apakah NIK sudah pernah didaftarkan
             $stmt_check_nik = $db->prepare("SELECT id, no_registrasi, nama_santri FROM pendaftaran WHERE nik_santri = :nik LIMIT 1");
@@ -618,8 +620,8 @@ include 'includes/head.php';
                             <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center">
                                 <i class="fa-solid fa-envelope text-[#5C3E35] mr-2"></i> Email Utama Notifikasi PSB
                             </label>
-                            <input type="email" name="email" placeholder="contoh: orangtua@gmail.com" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-[#5C3E35]/20 focus:border-[#5C3E35] transition">
-                            <p class="text-[11px] text-gray-500 mt-1">Kartu ujian, bukti validasi, dan surat kelulusan dapat dikirimkan otomatis ke alamat email ini.</p>
+                            <input type="email" name="email" id="input_email_manual" pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$" placeholder="contoh: orangtua@gmail.com" oninput="this.value=this.value.replace(/\s+/g,'')" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-[#5C3E35]/20 focus:border-[#5C3E35] transition">
+                            <p class="text-[11px] text-gray-500 mt-1">Wajib menyertakan tanda <b>@</b> dan domain aktif (contoh: <i>orangtua@gmail.com</i>).</p>
                         </div>
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

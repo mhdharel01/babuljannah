@@ -146,13 +146,28 @@ require_once 'includes/header.php';
     <div class="max-w-7xl mx-auto px-4">
         
         <div class="max-w-4xl mx-auto mb-6">
-            <?php if (isset($_SESSION['success_reg'])): ?>
-            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-sm flex items-start space-x-3 mb-4">
-                <i class="fa-solid fa-circle-check text-emerald-600 text-lg mt-0.5"></i>
-                <div>
-                    <strong class="font-bold block">Pendaftaran Berhasil!</strong>
-                    <span>Pendaftaran Anda telah diterima. Silakan catat Nomor Registrasi Anda dan ikuti panduan transfer biaya pendaftaran di bagian bawah halaman ini.</span>
+            <?php 
+            $is_newly_registered = isset($_SESSION['success_reg']) || isset($_GET['registered']);
+            if (isset($_SESSION['success_reg'])): 
+            ?>
+            <div class="bg-emerald-50 border-2 border-emerald-300 text-emerald-900 p-5 rounded-2xl text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 shadow-xs">
+                <div class="flex items-start space-x-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-lg shadow-2xs mt-0.5">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <strong class="font-black text-emerald-950 text-base block">Pendaftaran Berhasil Diterima!</strong>
+                        <p class="text-xs leading-relaxed text-emerald-800 font-medium">
+                            Silakan catat atau salin <strong>Nomor Registrasi</strong> Anda di bawah ini. Jika Anda belum membayar sekarang, data Anda <strong>telah disimpan otomatis di browser HP/perangkat ini</strong>—cukup buka menu <strong>Status &amp; Kelulusan</strong> kapan saja untuk mengunggah bukti transfer.
+                        </p>
+                    </div>
                 </div>
+                <?php if ($pendaftar): ?>
+                <button type="button" onclick="copyNorek('<?= htmlspecialchars($pendaftar['no_registrasi']) ?>', this)" class="inline-flex items-center justify-center space-x-2 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-2xs transition flex-shrink-0 cursor-pointer">
+                    <i class="fa-regular fa-copy"></i>
+                    <span class="copy-label">Salin No. Reg (<?= htmlspecialchars($pendaftar['no_registrasi']) ?>)</span>
+                </button>
+                <?php endif; ?>
             </div>
             <?php unset($_SESSION['success_reg']); endif; ?>
 
@@ -217,7 +232,35 @@ require_once 'includes/header.php';
                         </p>
                     </div>
 
-                    <form action="status.php" method="GET" class="space-y-5 mt-8">
+                    <!-- Banner Auto-Save Pendaftaran Terakhir di Perangkat Ini -->
+                    <div id="saved-reg-banner" class="hidden mt-5 bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 shadow-2xs">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 text-sm shadow-2xs mt-0.5">
+                                    <i class="fa-solid fa-bookmark"></i>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 block">Tersimpan Otomatis di Perangkat Ini</span>
+                                    <h4 id="saved-reg-nama" class="text-sm font-black text-primary mt-0.5">-</h4>
+                                    <p class="text-xs font-bold text-amber-900 font-mono mt-0.5">
+                                        No. Reg: <span id="saved-reg-kode">-</span> &bull; WA: <span id="saved-reg-wa">-</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="clearSavedReg()" class="text-gray-400 hover:text-red-600 text-xs p-1" title="Hapus riwayat tersimpan di perangkat ini">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="mt-3 pt-2.5 border-t border-amber-200/80 flex flex-wrap items-center justify-between gap-2">
+                            <span class="text-[11px] text-amber-800 font-medium">Klik tombol di samping untuk langsung membuka tagihan &amp; upload bukti bayar:</span>
+                            <a id="saved-reg-link" href="#" class="inline-flex items-center space-x-1.5 bg-primary hover:bg-secondary text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-xs transition">
+                                <span>Buka Status Pendaftaran</span>
+                                <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <form action="status.php" method="GET" class="space-y-5 mt-6">
                         <div class="space-y-2">
                             <label for="no_reg" class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">No. Registrasi Calon Santri</label>
                             <div class="relative">
@@ -313,7 +356,13 @@ require_once 'includes/header.php';
                         <div class="bg-primary p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center">
                     <div>
                         <span class="text-xs uppercase font-semibold text-gray-300 tracking-wider">Nomor Registrasi</span>
-                        <h2 class="text-2xl font-bold text-accent tracking-wider"><?= $pendaftar['no_registrasi'] ?></h2>
+                        <div class="flex items-center space-x-2.5 mt-0.5">
+                            <h2 class="text-2xl font-bold text-accent tracking-wider"><?= $pendaftar['no_registrasi'] ?></h2>
+                            <button type="button" onclick="copyNorek('<?= htmlspecialchars($pendaftar['no_registrasi']) ?>', this)" class="inline-flex items-center space-x-1.5 bg-white/15 hover:bg-white/25 text-white border border-white/20 px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer" title="Salin Nomor Registrasi">
+                                <i class="fa-regular fa-copy text-xs"></i>
+                                <span class="copy-label">Salin Nomor</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="mt-4 md:mt-0 bg-white bg-opacity-10 px-4 py-2 rounded-xl border border-white border-opacity-15 text-sm">
                         <span>Status Pembayaran: </span>
@@ -806,6 +855,10 @@ require_once 'includes/header.php';
                                         Bukti pembayaran <?= format_rupiah(get_biaya_tes($pendaftar['jalur_pendaftaran'] ?? '')) ?> yang Anda unggah sedang diperiksa oleh bendahara panitia PSB. Status akan diperbarui dalam 1x24 jam. Silakan lakukan pengecekan halaman ini secara berkala.
                                     </p>
                                     <?php if (!empty($pendaftar['bukti_bayar_tes'])): ?>
+                                        <?php
+                                        $wa_konfirmasi_bayar = "Assalamu'alaikum Wr. Wb. Panitia PSB Babul Jannah,\n\nSaya telah mengunggah bukti transfer biaya pendaftaran untuk:\n- Nama Santri: " . $pendaftar['nama_santri'] . "\n- No. Registrasi: " . $pendaftar['no_registrasi'] . "\n- Jenjang: " . $pendaftar['jalur_pendaftaran'] . "\n\nMohon bantuannya untuk verifikasi. Jazakumullahu khairan.";
+                                        $wa_konfirmasi_url = "https://wa.me/6281170789988?text=" . rawurlencode($wa_konfirmasi_bayar);
+                                        ?>
                                         <div class="pt-3 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/80 p-3.5 rounded-xl border border-amber-200 shadow-sm">
                                             <div class="flex items-center space-x-3 overflow-hidden">
                                                 <div class="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 text-amber-700 overflow-hidden border border-amber-300">
@@ -816,10 +869,16 @@ require_once 'includes/header.php';
                                                     <p class="text-xs font-bold text-gray-800 truncate max-w-[180px] sm:max-w-[220px]"><?= $pendaftar['bukti_bayar_tes'] ?></p>
                                                 </div>
                                             </div>
-                                            <a href="<?= get_storage_url('', $pendaftar['bukti_bayar_tes']) ?>" target="_blank" class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-1.5 shadow transition flex-shrink-0">
-                                                <i class="fa-solid fa-eye"></i>
-                                                <span>Lihat Struk Saya</span>
-                                            </a>
+                                            <div class="flex flex-wrap items-center gap-2 flex-shrink-0">
+                                                <a href="<?= get_storage_url('', $pendaftar['bukti_bayar_tes']) ?>" target="_blank" class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-1.5 shadow transition">
+                                                    <i class="fa-solid fa-eye"></i>
+                                                    <span>Lihat Struk Saya</span>
+                                                </a>
+                                                <a href="<?= $wa_konfirmasi_url ?>" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-1.5 shadow transition">
+                                                    <i class="fa-brands fa-whatsapp text-sm"></i>
+                                                    <span>Konfirmasi WA Panitia</span>
+                                                </a>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -1094,8 +1153,95 @@ function copyNorek(text, btn) {
     }
 }
 
-// Anti-Spam Button Lock saat Unggah Bukti Bayar
+function clearSavedReg() {
+    try {
+        localStorage.removeItem('bj_saved_registration');
+    } catch (e) {}
+    const banner = document.getElementById('saved-reg-banner');
+    if (banner) banner.classList.add('hidden');
+}
+
+// Auto-Save Data Pendaftaran di Browser HP Wali Santri & Popup Pengingat No. Registrasi
 document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($pendaftar): ?>
+    try {
+        const regData = {
+            no_reg: <?= json_encode($pendaftar['no_registrasi']) ?>,
+            nama: <?= json_encode($pendaftar['nama_santri']) ?>,
+            jalur: <?= json_encode($pendaftar['jalur_pendaftaran']) ?>,
+            phone: <?= json_encode($pendaftar['wa_ayah'] ?: $phone) ?>,
+            saved_at: new Date().toISOString()
+        };
+        localStorage.setItem('bj_saved_registration', JSON.stringify(regData));
+    } catch (e) {}
+    <?php else: ?>
+    // Jika berada di halaman pencarian, tampilkan kartu akses cepat & isi otomatis form dari penyimpanan perangkat
+    try {
+        const rawSaved = localStorage.getItem('bj_saved_registration');
+        if (rawSaved) {
+            const saved = JSON.parse(rawSaved);
+            if (saved && saved.no_reg && saved.phone) {
+                const banner = document.getElementById('saved-reg-banner');
+                const elNama = document.getElementById('saved-reg-nama');
+                const elKode = document.getElementById('saved-reg-kode');
+                const elWa   = document.getElementById('saved-reg-wa');
+                const elLink = document.getElementById('saved-reg-link');
+                const inpReg = document.getElementById('no_reg');
+                const inpWa  = document.getElementById('phone');
+
+                if (elNama) elNama.textContent = (saved.nama || 'Calon Santri') + (saved.jalur ? ` (${saved.jalur})` : '');
+                if (elKode) elKode.textContent = saved.no_reg;
+                if (elWa)   elWa.textContent = saved.phone;
+                if (elLink) elLink.href = `status.php?no_reg=${encodeURIComponent(saved.no_reg)}&phone=${encodeURIComponent(saved.phone)}`;
+                if (banner) banner.classList.remove('hidden');
+
+                // Isi otomatis kolom pencarian jika masih kosong
+                if (inpReg && !inpReg.value) inpReg.value = saved.no_reg;
+                if (inpWa && !inpWa.value)   inpWa.value = saved.phone;
+            }
+        }
+    } catch (e) {}
+    <?php endif; ?>
+
+    <?php if (!empty($is_newly_registered) && $pendaftar): ?>
+    // Tampilkan Popup Mencolok Nomor Registrasi + Tombol Salin saat baru selesai daftar
+    const showRegModal = () => {
+        if (typeof Swal === 'undefined') {
+            setTimeout(showRegModal, 150);
+            return;
+        }
+        const noReg = <?= json_encode($pendaftar['no_registrasi']) ?>;
+        const namaSantri = <?= json_encode($pendaftar['nama_santri']) ?>;
+        Swal.fire({
+            icon: 'success',
+            title: 'Pendaftaran Berhasil!',
+            html: `
+                <div class="text-left space-y-3 mt-1">
+                    <p class="text-xs text-gray-600 leading-relaxed text-center">
+                        Data pendaftaran ananda <b>${namaSantri}</b> telah tercatat. Harap simpan atau <i>screenshot</i> <b>Nomor Registrasi</b> Anda di bawah ini:
+                    </p>
+                    <div class="bg-[#FBF9F6] border-2 border-[#5C3E35] rounded-2xl p-4 text-center shadow-inner">
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 block">Nomor Registrasi Calon Santri</span>
+                        <div class="text-2xl font-black text-[#3E2723] font-mono tracking-wider my-1 select-all">${noReg}</div>
+                        <button type="button" onclick="copyNorek('${noReg}', this)" class="mt-1.5 inline-flex items-center space-x-1.5 bg-[#5C3E35] hover:bg-[#3E2723] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer">
+                            <i class="fa-regular fa-copy"></i>
+                            <span class="copy-label">Salin Nomor Registrasi</span>
+                        </button>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-900 leading-relaxed">
+                        <i class="fa-solid fa-bookmark text-amber-600 mr-1"></i>
+                        <b>Belum ingin transfer sekarang?</b> Tidak masalah! Nomor ini sudah <b>tersimpan otomatis di HP/browser Anda</b>. Kapan pun siap membayar, cukup buka menu <b>Status &amp; Kelulusan</b>.
+                    </div>
+                </div>
+            `,
+            confirmButtonText: 'Mengerti & Lihat Rincian Tagihan',
+            confirmButtonColor: '#3E2723',
+            allowOutsideClick: false
+        });
+    };
+    setTimeout(showRegModal, 250);
+    <?php endif; ?>
+
     const uploadForm = document.querySelector('form input[name="action"][value="upload_bukti"]')?.closest('form');
     if (uploadForm) {
         uploadForm.addEventListener('submit', function(e) {
