@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 // 2. Ambil data santri lengkap
-$stmt = $db->prepare("SELECT p.*, COALESCE(g.nama_gelombang, 'Gelombang Umum') as nama_gelombang, g.tahun_ajaran, g.tgl_ujian 
+$stmt = $db->prepare("SELECT p.*, COALESCE(g.nama_gelombang, 'Gelombang Umum') as nama_gelombang, g.tahun_ajaran, g.tgl_ujian, g.tgl_pengumuman 
     FROM pendaftaran p 
     LEFT JOIN gelombang g ON p.gelombang_id = g.id 
     WHERE p.id = :id");
@@ -147,6 +147,11 @@ if (!$santri) {
     header("Location: pendaftar.php?error=not_found");
     exit();
 }
+
+$tgl_hari_ini = date('Y-m-d');
+$belum_jadwal_seleksi = (!empty($santri['tgl_ujian']) && $santri['tgl_ujian'] !== '0000-00-00' && $tgl_hari_ini < $santri['tgl_ujian'])
+    || (!empty($santri['tgl_pengumuman']) && $santri['tgl_pengumuman'] !== '0000-00-00' && $tgl_hari_ini < $santri['tgl_pengumuman']);
+$status_seleksi_wa = ($belum_jadwal_seleksi && in_array($santri['status_seleksi'], ['Lulus', 'Tidak Lulus'])) ? 'Belum Seleksi (Menunggu Jadwal Ujian)' : $santri['status_seleksi'];
 
 // Hitung Biaya Pendaftaran Sesuai Jenjang
 $biaya_pendaftaran = 350000;
@@ -244,7 +249,7 @@ include 'includes/head.php';
                     </div>
                     <div class="flex items-center space-x-2">
                         <?php if ($santri['status_pembayaran'] === 'Lunas' && !empty($santri['wa_ayah'])): ?>
-                            <a href="<?= get_wa_url_custom($santri['wa_ayah'], $santri['nama_santri'], $santri['no_registrasi'], $santri['status_pembayaran'], $santri['status_seleksi']) ?>" target="_blank" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-xs transition">
+                            <a href="<?= get_wa_url_custom($santri['wa_ayah'], $santri['nama_santri'], $santri['no_registrasi'], $santri['status_pembayaran'], $status_seleksi_wa) ?>" target="_blank" class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-xs transition">
                                 <i class="fa-brands fa-whatsapp text-sm"></i>
                                 <span>Kirim Notif Lunas &amp; Kartu Ujian via WA</span>
                             </a>
@@ -320,10 +325,20 @@ include 'includes/head.php';
                                 <span class="inline-flex items-center text-xs font-black text-[#5C3E35] mt-0.5">
                                     <i class="fa-solid fa-award mr-1 text-[#A17A6F]"></i> Lulus
                                 </span>
+                                <?php if ($belum_jadwal_seleksi): ?>
+                                    <span class="block text-[9px] font-bold text-amber-600" title="Karena belum jadwal seleksi/pengumuman, di halaman Cek Status wali tetap tampil Kartu Ujian & Unduh Formulir">
+                                        <i class="fa-solid fa-clock"></i> Terkunci di Publik
+                                    </span>
+                                <?php endif; ?>
                             <?php elseif ($santri['status_seleksi'] === 'Tidak Lulus'): ?>
                                 <span class="inline-flex items-center text-xs font-black text-red-600 mt-0.5">
                                     <i class="fa-solid fa-circle-xmark mr-1"></i> Tidak Lulus
                                 </span>
+                                <?php if ($belum_jadwal_seleksi): ?>
+                                    <span class="block text-[9px] font-bold text-amber-600" title="Karena belum jadwal seleksi/pengumuman, di halaman Cek Status wali tetap tampil Kartu Ujian & Unduh Formulir">
+                                        <i class="fa-solid fa-clock"></i> Terkunci di Publik
+                                    </span>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <span class="inline-flex items-center text-xs font-black text-gray-500 mt-0.5">
                                     <i class="fa-regular fa-clock mr-1"></i> Belum Seleksi
@@ -428,7 +443,7 @@ include 'includes/head.php';
                                     <?php endif; ?>
 
                                     <?php if (!empty($santri['wa_ayah'])): ?>
-                                    <a href="<?= get_wa_url_custom($santri['wa_ayah'], $santri['nama_santri'], $santri['no_registrasi'], $santri['status_pembayaran'], $santri['status_seleksi']) ?>" target="_blank" class="px-3.5 py-2 bg-[#25D366] hover:bg-[#1ebe57] text-white rounded-xl text-xs font-extrabold transition shadow-xs flex items-center space-x-1.5" style="background-color: #16A34A !important; color: #FFFFFF !important;" title="Kirim pesan WhatsApp ke orang tua beserta tautan cek status / kartu ujian">
+                                    <a href="<?= get_wa_url_custom($santri['wa_ayah'], $santri['nama_santri'], $santri['no_registrasi'], $santri['status_pembayaran'], $status_seleksi_wa) ?>" target="_blank" class="px-3.5 py-2 bg-[#25D366] hover:bg-[#1ebe57] text-white rounded-xl text-xs font-extrabold transition shadow-xs flex items-center space-x-1.5" style="background-color: #16A34A !important; color: #FFFFFF !important;" title="Kirim pesan WhatsApp ke orang tua beserta tautan cek status / kartu ujian">
                                         <i class="fa-brands fa-whatsapp text-sm"></i>
                                         <span><?= $santri['status_pembayaran'] === 'Lunas' ? 'Kirim Notif Lunas via WA' : 'Hubungi Wali via WA' ?></span>
                                     </a>

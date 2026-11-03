@@ -116,13 +116,36 @@ if (!empty($no_reg) && !empty($phone)) {
     }
 }
 
-// Cek apakah tanggal pengumuman masih terkunci (belum tiba waktunya)
+// Cek apakah tanggal ujian / pengumuman masih terkunci (belum tiba waktunya)
+$belum_waktu_ujian = false;
 $belum_waktu_pengumuman = false;
+$tgl_ujian_db = '';
 $tgl_pengumuman_db = '';
 if ($pendaftar) {
     $tgl_sekarang = date('Y-m-d');
+    $tgl_ujian_db = $pendaftar['tgl_ujian'] ?? '';
     $tgl_pengumuman_db = $pendaftar['tgl_pengumuman'] ?? '';
-    $belum_waktu_pengumuman = !empty($tgl_pengumuman_db) && ($tgl_pengumuman_db !== '0000-00-00') && ($tgl_sekarang < $tgl_pengumuman_db);
+
+    // Fallback ke gelombang aktif/terbaru jika pendaftar belum terhubung ke gelombang_id tertentu
+    if ((empty($tgl_ujian_db) || $tgl_ujian_db === '0000-00-00') && (empty($tgl_pengumuman_db) || $tgl_pengumuman_db === '0000-00-00')) {
+        try {
+            $stmt_g_fb = $db->query("SELECT tgl_ujian, tgl_pengumuman FROM gelombang WHERE status = 'aktif' ORDER BY id DESC LIMIT 1");
+            $g_fb = $stmt_g_fb ? $stmt_g_fb->fetch() : null;
+            if (!$g_fb) {
+                $stmt_g_fb2 = $db->query("SELECT tgl_ujian, tgl_pengumuman FROM gelombang ORDER BY id DESC LIMIT 1");
+                $g_fb = $stmt_g_fb2 ? $stmt_g_fb2->fetch() : null;
+            }
+            if ($g_fb) {
+                $tgl_ujian_db = $g_fb['tgl_ujian'] ?? '';
+                $tgl_pengumuman_db = $g_fb['tgl_pengumuman'] ?? '';
+                $pendaftar['tgl_ujian'] = $tgl_ujian_db;
+                $pendaftar['tgl_pengumuman'] = $tgl_pengumuman_db;
+            }
+        } catch (Throwable $e) {}
+    }
+
+    $belum_waktu_ujian = !empty($tgl_ujian_db) && ($tgl_ujian_db !== '0000-00-00') && ($tgl_sekarang < $tgl_ujian_db);
+    $belum_waktu_pengumuman = $belum_waktu_ujian || (!empty($tgl_pengumuman_db) && ($tgl_pengumuman_db !== '0000-00-00') && ($tgl_sekarang < $tgl_pengumuman_db));
 }
 
 require_once 'includes/header.php';
@@ -403,8 +426,7 @@ require_once 'includes/header.php';
                         <div class="flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold <?php
                                 if ($pendaftar['status_pembayaran'] !== 'Lunas') echo 'bg-gray-200 text-gray-400';
-                                elseif ($belum_waktu_pengumuman) echo 'bg-amber-500 text-white shadow-md animate-pulse';
-                                elseif ($pendaftar['status_seleksi'] === 'Belum Seleksi') echo 'bg-blue-500 text-white shadow-md animate-pulse';
+                                elseif ($belum_waktu_pengumuman || $pendaftar['status_seleksi'] === 'Belum Seleksi') echo 'bg-blue-500 text-white shadow-md animate-pulse';
                                 elseif ($pendaftar['status_seleksi'] === 'Lulus') echo 'bg-emerald-600 text-white shadow-md';
                                 else echo 'bg-red-500 text-white shadow-md';
                             ?>">
@@ -412,8 +434,6 @@ require_once 'includes/header.php';
                                     <i class="fa-solid fa-check"></i>
                                 <?php elseif ($pendaftar['status_pembayaran'] === 'Lunas' && !$belum_waktu_pengumuman && $pendaftar['status_seleksi'] === 'Tidak Lulus'): ?>
                                     <i class="fa-solid fa-xmark"></i>
-                                <?php elseif ($belum_waktu_pengumuman): ?>
-                                    <i class="fa-solid fa-lock"></i>
                                 <?php else: ?>
                                     2
                                 <?php endif; ?>
@@ -423,8 +443,8 @@ require_once 'includes/header.php';
                                 <p class="text-[9px] text-gray-500 font-medium">
                                     <?php
                                     if ($pendaftar['status_pembayaran'] !== 'Lunas') echo 'Menunggu Pembayaran';
-                                    elseif ($belum_waktu_pengumuman) echo 'Menunggu Jadwal Rilis';
-                                    elseif ($pendaftar['status_seleksi'] === 'Belum Seleksi') echo 'Menunggu Ujian';
+                                    elseif ($belum_waktu_ujian || $pendaftar['status_seleksi'] === 'Belum Seleksi') echo 'Menunggu Ujian';
+                                    elseif ($belum_waktu_pengumuman) echo 'Menunggu Pengumuman';
                                     elseif ($pendaftar['status_seleksi'] === 'Lulus') echo 'Dinyatakan LULUS';
                                     else echo 'BELUM LULUS';
                                     ?>
@@ -730,55 +750,8 @@ require_once 'includes/header.php';
                             </div>
                         <?php endif; ?>
 
-                    <?php elseif (($pendaftar['status_seleksi'] === 'Lulus' || $pendaftar['status_seleksi'] === 'Tidak Lulus') && $belum_waktu_pengumuman): ?>
-                        <!-- TAHAP FINAL: PENGUMUMAN TERKUNCI (BELUM TANGGAL RILIS) -->
-                        <div class="bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-950 text-white p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden border border-blue-500/30 space-y-6">
-                            <!-- Decorative Background Glow -->
-                            <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
-                            <div class="absolute -left-10 -top-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
-                            
-                            <!-- Header Pengumuman Terkunci -->
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/15 relative z-10">
-                                <div class="flex items-center space-x-3.5">
-                                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center text-2xl shadow-lg shadow-amber-500/20 flex-shrink-0">
-                                        <i class="fa-solid fa-lock font-bold"></i>
-                                    </div>
-                                    <div>
-                                        <span class="inline-block bg-amber-500/30 text-amber-200 border border-amber-400/30 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-widest mb-1">Evaluasi Selesai</span>
-                                        <h5 class="font-extrabold text-white text-lg md:text-xl tracking-tight font-sans">Pengumuman Hasil Seleksi Masih Terkunci</h5>
-                                    </div>
-                                </div>
-                                <span class="bg-amber-500/20 text-amber-300 text-xs font-extrabold px-4 py-2 rounded-xl shadow-md uppercase tracking-wider text-center self-start sm:self-center border border-amber-400/30 flex items-center">
-                                    <i class="fa-solid fa-clock-rotate-left mr-1.5 animate-spin"></i> MENUNGGU JADWAL RILIS
-                                </span>
-                            </div>
-
-                            <!-- Isi Penjelasan Terkunci -->
-                            <div class="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 relative z-10 space-y-4 text-xs md:text-sm text-blue-100 leading-relaxed font-normal">
-                                <p>
-                                    Alhamdulillah, proses penilaian ujian tertulis, tilawah Al-Qur'an, dan wawancara untuk calon santri atas nama <strong class="text-white"><?= $pendaftar['nama_santri'] ?></strong> telah selesai diverifikasi oleh Dewan Guru dan Panitia PSB.
-                                </p>
-                                <p>
-                                    Demi menjaga keserentakan dan profesionalisme, Surat Keputusan Hasil Kelulusan saat ini <strong>masih dikunci oleh sistem</strong> dan baru akan dapat diakses serta dibuka secara umum sesuai jadwal pengumuman resmi.
-                                </p>
-                                
-                                <div class="bg-blue-950/80 p-5 rounded-2xl border border-blue-400/30 text-center space-y-2 my-2 shadow-inner">
-                                    <span class="text-[10px] text-blue-300 uppercase tracking-widest font-extrabold block">Jadwal Pembukaan Akses Pengumuman:</span>
-                                    <div class="text-xl md:text-2xl font-black text-amber-400 tracking-tight flex items-center justify-center space-x-2">
-                                        <i class="fa-solid fa-calendar-check text-amber-500"></i>
-                                        <span><?= format_tanggal($tgl_pengumuman_db) ?></span>
-                                    </div>
-                                    <p class="text-[10px] text-gray-400">Pukul 00:01 WIB secara serentak di portal ini</p>
-                                </div>
-
-                                <p class="text-xs text-blue-200/90 leading-relaxed italic font-serif pt-1 border-t border-white/10">
-                                    "Silakan simpan nomor registrasi Anda dan kembali mengakses halaman ini tepat pada tanggal pengumuman tersebut. Terima kasih atas kesabaran dan kepercayan Bapak/Ibu kepada Pondok Pesantren Babul Jannah."
-                                </p>
-                            </div>
-                        </div>
-
                     <?php else: ?>
-                        <!-- TAHAP SELEKSI & UJIAN: Tampilkan Verifikasi Pembayaran & Materi Ujian -->
+                        <!-- TAHAP SELEKSI & UJIAN: Tampilkan Verifikasi Pembayaran (Kartu Ujian & Formulir) & Materi Ujian -->
                         <!-- 1. Verifikasi Biaya Administrasi Ujian Seleksi -->
                         <div class="space-y-4">
                             <h4 class="font-bold text-primary border-l-4 border-secondary pl-2 text-sm flex items-center">

@@ -15,8 +15,10 @@ $success = '';
 $wa_notif_url = '';
 $wa_notif_nama = '';
 
-function clean_cell_val($val) {
-    return trim(strip_tags((string)$val));
+if (!function_exists('clean_cell_val')) {
+    function clean_cell_val($val) {
+        return trim(strip_tags((string)$val));
+    }
 }
 
 // Helper untuk format URL WhatsApp resmi

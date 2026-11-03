@@ -37,9 +37,11 @@ if ($pendaftar['status_seleksi'] !== 'Lulus') {
     die("Akses ditolak: Calon santri belum dinyatakan lulus.");
 }
 
-// Cek jadwal pengumuman (admin bebas akses)
+// Cek jadwal ujian & pengumuman (admin bebas akses)
 $tgl_sekarang = date('Y-m-d');
-if (!$is_admin && $pendaftar['tgl_pengumuman'] && $pendaftar['tgl_pengumuman'] !== '0000-00-00' && $tgl_sekarang < $pendaftar['tgl_pengumuman']) {
+$belum_ujian_cetak = !empty($pendaftar['tgl_ujian']) && $pendaftar['tgl_ujian'] !== '0000-00-00' && $tgl_sekarang < $pendaftar['tgl_ujian'];
+$belum_pengumuman_cetak = !empty($pendaftar['tgl_pengumuman']) && $pendaftar['tgl_pengumuman'] !== '0000-00-00' && $tgl_sekarang < $pendaftar['tgl_pengumuman'];
+if (!$is_admin && ($belum_ujian_cetak || $belum_pengumuman_cetak)) {
     die("Akses ditolak: Pengumuman kelulusan belum dibuka.");
 }
 ?>

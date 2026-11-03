@@ -127,6 +127,13 @@ if (!function_exists('sanitize')) {
     }
 }
 
+if (!function_exists('clean_cell_val')) {
+    function clean_cell_val($val)
+    {
+        return trim(strip_tags((string)($val ?? '')));
+    }
+}
+
 // Helper untuk format Rupiah
 if (!function_exists('format_rupiah')) {
     function format_rupiah($angka)
